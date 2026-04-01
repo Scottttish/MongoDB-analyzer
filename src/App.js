@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './index.css';
 import { Database, Search, ArrowLeft, ArrowRight, Download, Eye, RefreshCw } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line 
+  PieChart, Pie, Cell
 } from 'recharts';
 
 function App() {
@@ -55,7 +55,7 @@ function App() {
     setLoading(false);
   };
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     if (!isConnected) return;
     try {
       const res = await fetch('/api/logs');
@@ -66,9 +66,9 @@ function App() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [isConnected]);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     if (!isConnected) return;
     try {
       const res = await fetch('/api/status');
@@ -78,7 +78,7 @@ function App() {
     } catch (e) {
       setDbStatus('Critical');
     }
-  };
+  }, [isConnected]);
 
   useEffect(() => {
     let interval;
@@ -89,7 +89,7 @@ function App() {
       }, 60000); // exactly 1 minute
     }
     return () => clearInterval(interval);
-  }, [isConnected]);
+  }, [isConnected, fetchStatus, fetchLogs]);
 
   // Export handlers
   const handleExport = (format) => {
