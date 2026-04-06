@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './index.css';
 import { Database, Search, ArrowLeft, ArrowRight, Download, Eye, RefreshCw } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { ru } from 'date-fns/locale';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell
@@ -16,12 +17,11 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  const [filterInterval, setFilterInterval] = useState('Day');
+  const [filterInterval, setFilterInterval] = useState('День');
   const [errorIndex, setErrorIndex] = useState(0);
   
   const [connectionTimeMs, setConnectionTimeMs] = useState(0);
 
-  // Stats derived from logs
   const errorLogs = logs.filter(l => l.error || l.quality === 'Poor');
   const opCounts = logs.reduce((acc, log) => {
     acc[log.operation] = (acc[log.operation] || 0) + 1;
@@ -45,11 +45,11 @@ function App() {
         setDbStatus('Normal');
         fetchLogs();
       } else {
-        alert("Connection failed: " + data.error);
+        alert("Ошибка подключения: " + data.error);
         setDbStatus('Critical');
       }
     } catch (e) {
-      alert("Error: " + e.message);
+      alert("Ошибка: " + e.message);
       setDbStatus('Critical');
     }
     setLoading(false);
@@ -86,23 +86,21 @@ function App() {
       interval = setInterval(() => {
         fetchStatus();
         fetchLogs();
-      }, 60000); // exactly 1 minute
+      }, 60000);
     }
     return () => clearInterval(interval);
   }, [isConnected, fetchStatus, fetchLogs]);
 
-  // Export handlers
   const handleExport = (format) => {
     window.open(`/api/export?format=${format}`, '_blank');
   };
 
-  // Render variables
   const getOpColor = (op) => {
     if (op === 'CREATE') return '#3b82f6';
     if (op === 'READ') return '#10b981';
     if (op === 'UPDATE') return '#f59e0b';
     if (op === 'DELETE') return '#ef4444';
-    return '#94a3b8';
+    return '#9ca3af'; /* gray-400 */
   };
 
   const pieData = Object.keys(opCounts).filter(k => k !== 'TOTAL').map(k => ({
@@ -110,14 +108,12 @@ function App() {
     value: opCounts[k]
   }));
 
-  // Group logs directly into chart data
   const chartData = logs.slice(0, 50).reverse().map(l => ({
     name: format(new Date(l.ts), 'HH:mm'),
     latency: l.millis,
     op: l.operation
   }));
 
-  // Connection Progress Logic (0 to 100% based on an arbitrary max like 5000ms)
   let connPct = Math.min((connectionTimeMs / 5000) * 100, 100);
   if (connectionTimeMs === 0) connPct = 0;
   if (!isConnected) connPct = 0;
@@ -127,7 +123,7 @@ function App() {
       {/* Top Center: Config */}
       <div className="top-center panel">
         <div className="config-input-wrapper">
-          <Database size={24} color="#6366f1" />
+          <Database size={24} color="#FF5A00" />
           <input 
             type="text" 
             className="config-input" 
@@ -136,14 +132,14 @@ function App() {
             onChange={(e) => setDbUri(e.target.value)}
           />
           <button className="btn" onClick={handleConnect} disabled={loading}>
-            {loading ? <RefreshCw className="animate-spin" /> : 'Connect DB'}
+            {loading ? <RefreshCw className="animate-spin" /> : 'Подключиться'}
           </button>
         </div>
         
         <div className="flex-row">
           <div className="text-muted" style={{textAlign: 'right', marginRight: '10px'}}>
-            <div>Connection Perf</div>
-            <div style={{color: 'white', fontWeight: 'bold'}}>{connectionTimeMs} ms</div>
+            <div>Время подкл.</div>
+            <div style={{color: '#111827', fontWeight: 'bold'}}>{connectionTimeMs} ms</div>
           </div>
           <div className="circular-progress" style={{ '--progress': `${connPct}%` }}>
             <span className="circular-value">{Math.round(connPct)}%</span>
@@ -154,18 +150,18 @@ function App() {
       {/* Left Sidebar */}
       <div className="sidebar-left">
         <div className="panel">
-          <h2>Database Status</h2>
+          <h2>Статус Базы Данных</h2>
           <div className="status-indicator">
             <div className={`status-dot ${dbStatus.toLowerCase()}`}></div>
-            <h1 style={{margin: 0}}>{dbStatus}</h1>
+            <h1 style={{margin: 0}}>{dbStatus === 'Normal' ? 'Нормальный' : dbStatus === 'Critical' ? 'Критичный' : 'В ожидании'}</h1>
           </div>
-          <div className="text-muted mb-4">Last checked: {formatDistanceToNow(lastUpdate)} ago</div>
-          <div className="text-muted">Checks automatically every 1 minute.</div>
+          <div className="text-muted mb-4">Обновлено: {formatDistanceToNow(lastUpdate, { locale: ru })} назад</div>
+          <div className="text-muted">Авто-проверка каждую 1 минуту.</div>
         </div>
 
         <div className="panel">
-          <h2>Analytics Split</h2>
-          <div style={{ height: '200px' }}>
+          <h2>Аналитика запросов</h2>
+          <div style={{ width: '100%', height: '220px', minHeight: 220 }}>
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -173,8 +169,8 @@ function App() {
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
+                    innerRadius={60}
+                    outerRadius={90}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -182,15 +178,15 @@ function App() {
                       <Cell key={`cell-${index}`} fill={getOpColor(entry.name)} />
                     ))}
                   </Pie>
-                  <RechartsTooltip contentStyle={{background: '#161621', border: 'none', color: 'white'}} />
+                  <RechartsTooltip contentStyle={{background: '#ffffff', borderRadius: 8, borderColor: '#e5e7eb', color: '#111827'}} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <div className="text-muted">No data available</div>}
+            ) : <div className="text-muted">Нет данных</div>}
           </div>
         </div>
 
         <div className="panel">
-          <h2>CRUD Distribution</h2>
+          <h2>Распределение CRUD</h2>
           {['CREATE', 'READ', 'UPDATE', 'DELETE'].map(op => {
             const count = opCounts[op] || 0;
             const pct = opCounts.TOTAL ? (count / opCounts.TOTAL) * 100 : 0;
@@ -214,9 +210,9 @@ function App() {
         {/* Top Graph Container */}
         <div className="panel">
           <div className="flex-row justify-between mb-4">
-            <h2>Operation Frequency & Latency</h2>
+            <h2>Частота и Задержка Операций</h2>
             <div className="chart-filters">
-              {['Day', 'Week', 'Month', 'Year'].map(i => (
+              {['День', 'Неделя', 'Месяц', 'Год'].map(i => (
                 <button 
                   key={i} 
                   className={`filter-btn ${filterInterval === i ? 'active' : ''}`}
@@ -227,12 +223,12 @@ function App() {
               ))}
             </div>
           </div>
-          <div style={{ height: '250px' }}>
+          <div style={{ width: '100%', height: '280px', minHeight: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{background: '#161621', border: 'none', color: 'white'}} />
+                <XAxis dataKey="name" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.03)'}} contentStyle={{background: '#ffffff', borderRadius: 8, borderColor: '#e5e7eb', color: '#111827'}} />
                 <Bar dataKey="latency" radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getOpColor(entry.op)} />
@@ -247,17 +243,17 @@ function App() {
         <div className="panel" style={{display: 'flex', flexDirection: 'column'}}>
           <div className="flex-row justify-between mb-4">
             <div className="flex-row">
-              <h2>Action Logs</h2>
+              <h2>Журнал операций</h2>
               <div className="w-full max-w-xs" style={{position: 'relative', marginLeft: '20px'}}>
-                <Search size={16} color="#94a3b8" style={{position: 'absolute', left: 10, top: 10}} />
-                <input type="text" className="config-input" style={{paddingLeft: '34px', padding: '8px 8px 8px 34px'}} placeholder="Search logs..." />
+                <Search size={16} color="#6b7280" style={{position: 'absolute', left: 10, top: 10}} />
+                <input type="text" className="config-input" style={{paddingLeft: '34px', padding: '8px 8px 8px 34px'}} placeholder="Поиск логов..." />
               </div>
             </div>
             <div className="flex-row">
-              <button className="btn" style={{padding: '8px 16px', background: 'rgba(255,255,255,0.1)'}} onClick={() => handleExport('json')}>
+              <button className="btn" style={{padding: '8px 16px', background: '#e5e7eb', color: '#374151'}} onClick={() => handleExport('json')}>
                 <Download size={16} /> JSON
               </button>
-              <button className="btn" style={{padding: '8px 16px', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981'}} onClick={() => handleExport('excel')}>
+              <button className="btn" style={{padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981'}} onClick={() => handleExport('excel')}>
                 <Download size={16} /> Excel
               </button>
             </div>
@@ -267,10 +263,10 @@ function App() {
             <div className="error-widget">
               <div className="flex-row" style={{color: '#ef4444', fontWeight: 600}}>
                 <Eye size={20} />
-                <span>Error / Poor Performance Widget</span>
+                <span>Виджет проблем и задержек</span>
               </div>
               <div className="error-controls">
-                <span>{errorIndex + 1} / {errorLogs.length} issues</span>
+                <span>{errorIndex + 1} / {errorLogs.length} проблем</span>
                 <button className="err-btn" onClick={() => setErrorIndex(e => Math.max(0, e - 1))}><ArrowLeft size={16} /></button>
                 <button className="err-btn" onClick={() => setErrorIndex(e => Math.min(errorLogs.length - 1, e + 1))}><ArrowRight size={16} /></button>
               </div>
@@ -280,11 +276,12 @@ function App() {
           <div className="logs-container">
             {logs.length > 0 ? logs.map((log, idx) => {
               const isErrorTarget = errorLogs.length > 0 ? (errorLogs[errorIndex].id === log.id) : false;
+              let qualityRU = log.quality === 'Great' ? 'Отлично' : log.quality === 'Need Improvement' ? 'Требует улучшений' : 'Плохо';
               return (
                 <div key={idx} id={`log-${log.id}`} className={`log-item ${log.error || log.quality === 'Poor' ? 'error-log' : ''} ${isErrorTarget ? 'highlighted' : ''}`}>
                   <div className="log-header">
                     <span className={`badge ${log.operation.toLowerCase()}`}>{log.operation}</span>
-                    <span className={`badge ${log.quality.toLowerCase().replace(' ', '-')}`}>{log.quality} ({log.millis.toFixed(1)}ms)</span>
+                    <span className={`badge ${log.quality.toLowerCase().replace(' ', '-')}`}>{qualityRU} ({log.millis.toFixed(1)}мс)</span>
                     <span className="text-muted">{format(new Date(log.ts), 'HH:mm:ss')}</span>
                   </div>
                   <div className="log-query">
@@ -295,7 +292,7 @@ function App() {
               )
             }) : (
               <div className="text-muted" style={{textAlign: 'center', padding: '40px'}}>
-                No logs generated or parsed yet.
+                Логов пока нет.
               </div>
             )}
           </div>
