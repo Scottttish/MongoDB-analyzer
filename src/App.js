@@ -39,7 +39,7 @@ function App() {
         body: JSON.stringify({ uri: dbUri })
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.success !== false) {
         setIsConnected(true);
         setConnectionTimeMs(data.duration);
         setDbStatus('Normal');
@@ -150,7 +150,7 @@ function App() {
       {/* Left Sidebar */}
       <div className="sidebar-left">
         <div className="panel">
-          <h2>Статус Базы Данных</h2>
+          <h2>Статус базы данных</h2>
           <div className="status-indicator">
             <div className={`status-dot ${dbStatus.toLowerCase()}`}></div>
             <h1 style={{margin: 0}}>{dbStatus === 'Normal' ? 'Нормальный' : dbStatus === 'Critical' ? 'Критичный' : 'В ожидании'}</h1>
@@ -210,7 +210,7 @@ function App() {
         {/* Top Graph Container */}
         <div className="panel">
           <div className="flex-row justify-between mb-4">
-            <h2>Частота и Задержка Операций</h2>
+            <h2>Частота и задержка операций</h2>
             <div className="chart-filters">
               {['День', 'Неделя', 'Месяц', 'Год'].map(i => (
                 <button 

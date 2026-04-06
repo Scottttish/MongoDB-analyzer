@@ -7,11 +7,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// In-memory store for the current active connection state
-// Note: In serverless (Vercel), state is not perfectly persisted across invocations.
-// For a production app, URI should ideally be passed in requests or headers.
-// However, since it's a single user dashboard, we will store it globally, 
-// which Vercel might keep warm for a few minutes.
 let globalClient = null;
 let globalDbUri = null;
 
@@ -30,57 +25,46 @@ async function getClient(uri) {
 
 app.post('/api/connect', async (req, res) => {
   const { uri } = req.body;
-  if (!uri) return res.status(400).json({ error: 'MongoDB URI is required' });
+  if (!uri) return res.status(200).json({ success: false, error: 'Укажите MongoDB URI' });
 
   try {
     const start = Date.now();
     await getClient(uri);
     const duration = Date.now() - start;
     
-    // Attempt to configure profiling (needs privileges)
-    // db.command({ profile: 2 }) can fail on shared clusters like Atlas.
-    // We will try it but ignore if it fails.
     try {
       const db = globalClient.db();
       await db.command({ profile: 2 });
     } catch (e) {
-      console.warn("Could not set profiling level to 2. Needs admin privileges or is restricted (like Atlas Shared).", e.message);
+      console.warn("Could not set profiling level to 2", e.message);
     }
     
-    res.json({ success: true, duration, message: 'Connected to MongoDB' });
+    res.status(200).json({ success: true, duration, message: 'Connected to MongoDB' });
   } catch (err) {
     console.error("Connection Error:", err);
-    res.status(500).json({ error: err.message, duration: 0 });
+    res.status(200).json({ success: false, error: err.message, duration: 0 });
   }
 });
 
 app.get('/api/status', async (req, res) => {
-  if (!globalClient) return res.status(400).json({ connected: false });
+  if (!globalClient) return res.status(200).json({ connected: false });
   try {
     const db = globalClient.db();
     const adminDb = db.admin();
     const ping = await adminDb.command({ ping: 1 });
-    res.json({ connected: ping.ok === 1, status: ping.ok === 1 ? 'Normal' : 'Critical', updatedAt: new Date() });
+    res.status(200).json({ connected: ping.ok === 1, status: ping.ok === 1 ? 'Normal' : 'Critical', updatedAt: new Date() });
   } catch (err) {
-    res.json({ connected: false, status: 'Critical', error: err.message, updatedAt: new Date() });
+    res.status(200).json({ connected: false, status: 'Critical', error: err.message, updatedAt: new Date() });
   }
 });
 
 app.get('/api/logs', async (req, res) => {
-  if (!globalClient) return res.status(400).json({ error: 'Not connected' });
+  if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
   try {
     const db = globalClient.db();
-    // Retrieve system.profile data 
-    // If user's DB doesn't have profiling, this connection will throw an error or return empty
     const profileCollection = db.collection('system.profile');
-    
-    // Get last 1000 logs
-    const logs = await profileCollection.find({})
-      .sort({ ts: -1 })
-      .limit(1000)
-      .toArray();
+    const logs = await profileCollection.find({}).sort({ ts: -1 }).limit(1000).toArray();
       
-    // Transform logs
     const transformedLogs = logs.map(log => {
       let operation = 'UNKNOWN';
       if (log.op === 'query' || log.op === 'getmore' || log.op === 'command' && log.command?.find) operation = 'READ';
@@ -106,20 +90,14 @@ app.get('/api/logs', async (req, res) => {
       };
     });
 
-    // If there are no real logs (e.g. Atlas restricted environment), we will pass the "no logs" status,
-    // so the frontend can choose to generate some random simulator data just to show the UI if requested, 
-    // but the user expressly asked "must take REAL DATA."
-    res.json({ logs: transformedLogs });
+    res.status(200).json({ success: true, logs: transformedLogs });
   } catch (err) {
-    if (err.message.includes('not authorized')) {
-      return res.status(403).json({ error: 'Profiling is not authorized for this user/cluster.' });
-    }
-    res.status(500).json({ error: err.message });
+    res.status(200).json({ success: false, error: err.message });
   }
 });
 
 app.get('/api/export', async (req, res) => {
-  if (!globalClient) return res.status(400).json({ error: 'Not connected' });
+  if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
   try {
     const format = req.query.format || 'json';
     const db = globalClient.db();
@@ -146,10 +124,10 @@ app.get('/api/export', async (req, res) => {
       res.setHeader('Content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.send(excelBuffer);
     } else {
-      res.status(400).json({ error: 'Invalid format. Use json or excel.' });
+      res.status(200).json({ success: false, error: 'Invalid format. Use json or excel.' });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(200).json({ success: false, error: err.message });
   }
 });
 
