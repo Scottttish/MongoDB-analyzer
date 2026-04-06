@@ -163,7 +163,7 @@ function App() {
           <h2>Аналитика запросов</h2>
           <div style={{ width: '100%', height: '220px', minHeight: 220 }}>
             {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="99%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -224,7 +224,7 @@ function App() {
             </div>
           </div>
           <div style={{ width: '100%', height: '280px', minHeight: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <BarChart data={chartData}>
                 <XAxis dataKey="name" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />

@@ -23,7 +23,7 @@ async function getClient(uri) {
     await globalClient.close();
   }
   globalDbUri = uri;
-  globalClient = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+  globalClient = new MongoClient(uri);
   await globalClient.connect();
   return globalClient;
 }
