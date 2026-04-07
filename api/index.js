@@ -11,6 +11,7 @@ let globalClient = null;
 let globalDbUri = null;
 
 async function getClient(uri) {
+  if (!uri) throw new Error("URI is required");
   if (globalClient && globalDbUri === uri) {
     return globalClient;
   }
@@ -36,19 +37,19 @@ app.post('/api/connect', async (req, res) => {
       const db = globalClient.db();
       await db.command({ profile: 2 });
     } catch (e) {
-      console.warn("Could not set profiling level to 2", e.message);
+      // Ignore Free Tier failure
     }
-    
     res.status(200).json({ success: true, duration, message: 'Connected to MongoDB' });
   } catch (err) {
-    console.error("Connection Error:", err);
     res.status(200).json({ success: false, error: err.message, duration: 0 });
   }
 });
 
 app.get('/api/status', async (req, res) => {
-  if (!globalClient) return res.status(200).json({ connected: false });
+  const uri = req.query.uri;
+  if (!uri) return res.status(200).json({ connected: false });
   try {
+    await getClient(uri);
     const db = globalClient.db();
     const adminDb = db.admin();
     const ping = await adminDb.command({ ping: 1 });
@@ -59,11 +60,26 @@ app.get('/api/status', async (req, res) => {
 });
 
 app.get('/api/logs', async (req, res) => {
-  if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
+  const uri = req.query.uri;
+  if (!uri) return res.status(200).json({ success: false, error: 'Not connected (No URI)' });
   try {
+    await getClient(uri);
     const db = globalClient.db();
-    const profileCollection = db.collection('system.profile');
-    const logs = await profileCollection.find({}).sort({ ts: -1 }).limit(1000).toArray();
+    let logs = [];
+    
+    try {
+      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
+    } catch (e) {
+      if (e.message.includes('not authorized')) {
+        // FREE TIER FALLBACK: read from manual collection
+        logs = await db.collection('analyzer_logs').find({}).sort({ ts: -1 }).limit(1000).toArray();
+        if (logs.length === 0) {
+          return res.status(200).json({ success: false, error: 'FREE_TIER_EMPTY' });
+        }
+      } else {
+        throw e;
+      }
+    }
       
     const transformedLogs = logs.map(log => {
       let operation = 'UNKNOWN';
@@ -71,7 +87,7 @@ app.get('/api/logs', async (req, res) => {
       else if (log.op === 'insert' || log.command?.insert) operation = 'CREATE';
       else if (log.op === 'update' || log.command?.update) operation = 'UPDATE';
       else if (log.op === 'remove' || log.command?.delete) operation = 'DELETE';
-      else operation = log.op.toUpperCase();
+      else operation = String(log.op).toUpperCase();
 
       let quality = 'Great';
       if (log.millis > 500) quality = 'Poor';
@@ -81,8 +97,8 @@ app.get('/api/logs', async (req, res) => {
         id: log._id ? log._id.toString() : Math.random().toString(36),
         operation,
         ns: log.ns,
-        millis: log.millis,
-        ts: log.ts,
+        millis: log.millis || 0,
+        ts: log.ts || new Date(),
         query: JSON.stringify(log.command || log.query || log),
         error: log.err ? true : false,
         errMsg: log.err || null,
@@ -97,8 +113,10 @@ app.get('/api/logs', async (req, res) => {
 });
 
 app.get('/api/indexes', async (req, res) => {
-  if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
+  const uri = req.query.uri;
+  if (!uri) return res.status(200).json({ success: false, error: 'Not connected' });
   try {
+    await getClient(uri);
     const db = globalClient.db();
     const cols = await db.listCollections().toArray();
     let indexesList = [];
@@ -118,7 +136,7 @@ app.get('/api/indexes', async (req, res) => {
            });
          });
       } catch (err) {
-        // M0 restrictions or missing privileges for specific collections
+        // M0 restrictions
       }
     }
     res.status(200).json({ success: true, indexes: indexesList.sort((a,b) => b.usage - a.usage) });
@@ -128,11 +146,19 @@ app.get('/api/indexes', async (req, res) => {
 });
 
 app.get('/api/export', async (req, res) => {
-  if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
+  const uri = req.query.uri;
+  if (!uri) return res.status(200).json({ success: false, error: 'Not connected' });
   try {
+    await getClient(uri);
     const format = req.query.format || 'json';
     const db = globalClient.db();
-    const logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
+    
+    let logs = [];
+    try {
+      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
+    } catch (e) {
+      logs = await db.collection('analyzer_logs').find({}).sort({ ts: -1 }).limit(1000).toArray();
+    }
 
     if (format === 'json') {
       res.setHeader('Content-disposition', 'attachment; filename=mongo_logs.json');

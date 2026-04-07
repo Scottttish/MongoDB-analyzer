@@ -58,47 +58,58 @@ function App() {
   };
 
   const fetchLogs = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected || !dbUri) return;
     try {
-      const res = await fetch('/api/logs');
+      const res = await fetch(`/api/logs?uri=${encodeURIComponent(dbUri)}`);
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs);
+      } else if (data.error === 'FREE_TIER_EMPTY') {
+        setLogs([{
+          id: 'sys-error-' + Date.now(),
+          operation: 'SYSTEM',
+          ns: 'app.info',
+          millis: 0,
+          ts: new Date(),
+          query: 'БЕСПЛАТНЫЙ ТАРИФ (M0): Режим локальных логов активирован.',
+          error: false,
+          errMsg: 'База блокирует system.profile. Чтобы здесь появились логи, добавьте сохранение задержки и запросов в коллекцию "analyzer_logs" прямо в коде вашего основного приложения (создания счетов).',
+          quality: 'Great'
+        }]);
       } else {
-        // If the backend actively rejected reading logs with an error message, show it as a system log!
         setLogs([{
           id: 'sys-error-' + Date.now(),
           operation: 'ERROR',
           ns: 'system.profile',
           millis: 0,
           ts: new Date(),
-          query: 'СИСТЕМНОЕ СООБЩЕНИЕ: ' + (data.error || 'Неизвестная ошибка'),
+          query: 'СИСТЕМНАЯ ОШИБКА: ' + (data.error || 'Неизвестная ошибка'),
           error: true,
-          errMsg: 'База данных отклонила запрос. Если вы используете бесплатный кластер (M0/M2), MongoDB Atlas блокирует чтение коллекции профилирования (system.profile). Для использования нативного профилировщика нужен M10+ или локальная БД.',
+          errMsg: 'Произошла ошибка при загрузке логов.',
           quality: 'Poor'
         }]);
       }
     } catch (e) {
       console.error(e);
     }
-  }, [isConnected]);
+  }, [isConnected, dbUri]);
 
   const fetchStatus = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected || !dbUri) return;
     try {
-      const res = await fetch('/api/status');
+      const res = await fetch(`/api/status?uri=${encodeURIComponent(dbUri)}`);
       const data = await res.json();
       setDbStatus(data.status);
       setLastUpdate(data.updatedAt ? new Date(data.updatedAt) : new Date());
     } catch (e) {
       setDbStatus('Critical');
     }
-  }, [isConnected]);
+  }, [isConnected, dbUri]);
 
   const fetchIndexes = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected || !dbUri) return;
     try {
-      const res = await fetch('/api/indexes');
+      const res = await fetch(`/api/indexes?uri=${encodeURIComponent(dbUri)}`);
       const data = await res.json();
       if (data.success && data.indexes) {
         setIndexesData(data.indexes);
@@ -106,7 +117,7 @@ function App() {
     } catch (e) {
       console.error(e);
     }
-  }, [isConnected]);
+  }, [isConnected, dbUri]);
 
   useEffect(() => {
     let interval;
@@ -121,7 +132,7 @@ function App() {
   }, [isConnected, fetchStatus, fetchLogs, fetchIndexes]);
 
   const handleExport = (format) => {
-    window.open(`/api/export?format=${format}`, '_blank');
+    window.open(`/api/export?format=${format}&uri=${encodeURIComponent(dbUri)}`, '_blank');
   };
 
   const getOpColor = (op) => {
