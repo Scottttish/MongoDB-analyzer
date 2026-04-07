@@ -70,7 +70,7 @@ app.get('/api/logs', async (req, res) => {
     try {
       logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
     } catch (e) {
-      if (e.message.includes('not authorized')) {
+      if (e.message.includes('not authorized') || e.message.toLowerCase().includes('not allowed')) {
         // FREE TIER FALLBACK: read from manual collection
         logs = await db.collection('analyzer_logs').find({}).sort({ ts: -1 }).limit(1000).toArray();
         if (logs.length === 0) {
