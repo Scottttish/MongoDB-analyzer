@@ -96,6 +96,37 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
+app.get('/api/indexes', async (req, res) => {
+  if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
+  try {
+    const db = globalClient.db();
+    const cols = await db.listCollections().toArray();
+    let indexesList = [];
+    
+    for (let c of cols) {
+      if (c.name.startsWith('system.')) continue;
+      try {
+        const coll = db.collection(c.name);
+        const stats = await coll.aggregate([ { $indexStats: {} } ]).toArray();
+        const collStats = await db.command({ collStats: c.name });
+        
+        stats.forEach(st => {
+           indexesList.push({
+             name: `${c.name}: ${st.name}`,
+             size: collStats.indexSizes[st.name] || 0,
+             usage: st.accesses?.ops || 0
+           });
+         });
+      } catch (err) {
+        // M0 restrictions or missing privileges for specific collections
+      }
+    }
+    res.status(200).json({ success: true, indexes: indexesList.sort((a,b) => b.usage - a.usage) });
+  } catch (err) {
+    res.status(200).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/export', async (req, res) => {
   if (!globalClient) return res.status(200).json({ success: false, error: 'Not connected' });
   try {

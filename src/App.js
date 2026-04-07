@@ -15,6 +15,7 @@ function App() {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   
   const [logs, setLogs] = useState([]);
+  const [indexesData, setIndexesData] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [filterInterval, setFilterInterval] = useState('День');
@@ -44,6 +45,7 @@ function App() {
         setConnectionTimeMs(data.duration);
         setDbStatus('Normal');
         fetchLogs();
+        fetchIndexes();
       } else {
         alert("Ошибка подключения: " + data.error);
         setDbStatus('Critical');
@@ -60,8 +62,21 @@ function App() {
     try {
       const res = await fetch('/api/logs');
       const data = await res.json();
-      if (data.logs) {
+      if (data.success) {
         setLogs(data.logs);
+      } else {
+        // If the backend actively rejected reading logs with an error message, show it as a system log!
+        setLogs([{
+          id: 'sys-error-' + Date.now(),
+          operation: 'ERROR',
+          ns: 'system.profile',
+          millis: 0,
+          ts: new Date(),
+          query: 'СИСТЕМНОЕ СООБЩЕНИЕ: ' + (data.error || 'Неизвестная ошибка'),
+          error: true,
+          errMsg: 'База данных отклонила запрос. Если вы используете бесплатный кластер (M0/M2), MongoDB Atlas блокирует чтение коллекции профилирования (system.profile). Для использования нативного профилировщика нужен M10+ или локальная БД.',
+          quality: 'Poor'
+        }]);
       }
     } catch (e) {
       console.error(e);
@@ -80,16 +95,30 @@ function App() {
     }
   }, [isConnected]);
 
+  const fetchIndexes = useCallback(async () => {
+    if (!isConnected) return;
+    try {
+      const res = await fetch('/api/indexes');
+      const data = await res.json();
+      if (data.success && data.indexes) {
+        setIndexesData(data.indexes);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [isConnected]);
+
   useEffect(() => {
     let interval;
     if (isConnected) {
       interval = setInterval(() => {
         fetchStatus();
         fetchLogs();
+        fetchIndexes();
       }, 60000);
     }
     return () => clearInterval(interval);
-  }, [isConnected, fetchStatus, fetchLogs]);
+  }, [isConnected, fetchStatus, fetchLogs, fetchIndexes]);
 
   const handleExport = (format) => {
     window.open(`/api/export?format=${format}`, '_blank');
@@ -131,7 +160,7 @@ function App() {
             value={dbUri}
             onChange={(e) => setDbUri(e.target.value)}
           />
-          <button className="btn" onClick={handleConnect} disabled={loading}>
+          <button className="btn btn-primary" onClick={handleConnect} disabled={loading}>
             {loading ? <RefreshCw className="animate-spin" /> : 'Подключиться'}
           </button>
         </div>
@@ -156,32 +185,20 @@ function App() {
             <h1 style={{margin: 0}}>{dbStatus === 'Normal' ? 'Нормальный' : dbStatus === 'Critical' ? 'Критичный' : 'В ожидании'}</h1>
           </div>
           <div className="text-muted mb-4">Обновлено: {formatDistanceToNow(lastUpdate, { locale: ru })} назад</div>
-          <div className="text-muted">Авто-проверка каждую 1 минуту.</div>
         </div>
 
         <div className="panel">
-          <h2>Аналитика запросов</h2>
-          <div style={{ width: '100%', height: '220px', minHeight: 220 }}>
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="99%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getOpColor(entry.name)} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip contentStyle={{background: '#ffffff', borderRadius: 8, borderColor: '#e5e7eb', color: '#111827'}} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : <div className="text-muted">Нет данных</div>}
+          <h2>Аналитика индексов</h2>
+          <div className="index-list-container">
+            {indexesData.length > 0 ? indexesData.map((idx, i) => (
+              <div key={i} className="index-item">
+                <div className="index-title">{idx.name}</div>
+                <div className="index-stats">
+                  <span>{(idx.size / 1024).toFixed(1)} KB</span>
+                  <span>{idx.usage} исп.</span>
+                </div>
+              </div>
+            )) : <div className="text-muted">Нет данных (или доступ ограничен)</div>}
           </div>
         </div>
 
@@ -215,7 +232,8 @@ function App() {
               {['День', 'Неделя', 'Месяц', 'Год'].map(i => (
                 <button 
                   key={i} 
-                  className={`filter-btn ${filterInterval === i ? 'active' : ''}`}
+                  className={`btn btn-secondary ${filterInterval === i ? 'active' : ''}`}
+                  style={{padding: '6px 12px', fontSize: '12px'}}
                   onClick={() => setFilterInterval(i)}
                 >
                   {i}
@@ -241,19 +259,19 @@ function App() {
 
         {/* Logs List & Errors */}
         <div className="panel" style={{display: 'flex', flexDirection: 'column'}}>
-          <div className="flex-row justify-between mb-4">
-            <div className="flex-row">
-              <h2>Журнал операций</h2>
-              <div className="w-full max-w-xs" style={{position: 'relative', marginLeft: '20px'}}>
+          <div className="flex-row justify-between mb-4" style={{ position: 'relative' }}>
+            <div className="flex-row" style={{ flex: 1, gap: '20px' }}>
+              <h2 style={{ margin: 0, minWidth: 'max-content' }}>Журнал операций</h2>
+              <div className="w-full max-w-xs" style={{position: 'relative', flex: 1}}>
                 <Search size={16} color="#6b7280" style={{position: 'absolute', left: 10, top: 10}} />
-                <input type="text" className="config-input" style={{paddingLeft: '34px', padding: '8px 8px 8px 34px'}} placeholder="Поиск логов..." />
+                <input type="text" className="config-input" style={{paddingLeft: '34px', padding: '8px 8px 8px 34px', width: '100%'}} placeholder="Поиск логов..." />
               </div>
             </div>
             <div className="flex-row">
-              <button className="btn" style={{padding: '8px 16px', background: '#e5e7eb', color: '#374151'}} onClick={() => handleExport('json')}>
+              <button className="btn btn-secondary" style={{padding: '8px 16px'}} onClick={() => handleExport('json')}>
                 <Download size={16} /> JSON
               </button>
-              <button className="btn" style={{padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981'}} onClick={() => handleExport('excel')}>
+              <button className="btn btn-primary" style={{padding: '8px 16px'}} onClick={() => handleExport('excel')}>
                 <Download size={16} /> Excel
               </button>
             </div>
