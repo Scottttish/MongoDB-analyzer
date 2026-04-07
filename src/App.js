@@ -5,7 +5,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell
+  Cell
 } from 'recharts';
 
 function App() {
@@ -131,11 +131,6 @@ function App() {
     if (op === 'DELETE') return '#ef4444';
     return '#9ca3af'; /* gray-400 */
   };
-
-  const pieData = Object.keys(opCounts).filter(k => k !== 'TOTAL').map(k => ({
-    name: k,
-    value: opCounts[k]
-  }));
 
   const chartData = logs.slice(0, 50).reverse().map(l => ({
     name: format(new Date(l.ts), 'HH:mm'),
