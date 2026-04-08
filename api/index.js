@@ -32,7 +32,7 @@ app.post('/api/connect', async (req, res) => {
     const start = Date.now();
     await getClient(uri);
     const duration = Date.now() - start;
-    
+
     try {
       const db = globalClient.db();
       await db.command({ profile: 2 });
@@ -59,50 +59,35 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-app.get('/api/logs', async (req, res) => {
+app.get('/api/stats', async (req, res) => {
   const uri = req.query.uri;
   if (!uri) return res.status(200).json({ success: false, error: 'Not connected (No URI)' });
   try {
     await getClient(uri);
     const db = globalClient.db();
-    let logs = [];
     
-    try {
-      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
-    } catch (e) {
-      if (e.message.includes('not authorized') || e.message.toLowerCase().includes('not allowed')) {
-         return res.status(200).json({ success: false, error: 'Ограничение тарифа MongoDB Atlas: У вас нет прав (not authorized) на чтение system.profile. Используйте локальную MongoDB или VPS без ограничений.' });
-      } else {
-        throw e;
-      }
+    let dbStats = {};
+    try { dbStats = await db.command({ dbStats: 1 }); } catch(e) {}
+    
+    const cols = await db.listCollections().toArray();
+    let collectionsList = [];
+    
+    for (let c of cols) {
+      if (c.name.startsWith('system.')) continue;
+      try {
+        const stats = await db.command({ collStats: c.name });
+        collectionsList.push({
+          name: c.name,
+          count: stats.count || 0,
+          size: stats.size || 0,
+          avgObjSize: stats.avgObjSize || 0,
+          nindexes: stats.nindexes || 0,
+          totalIndexSize: stats.totalIndexSize || 0
+        });
+      } catch (err) { }
     }
-      
-    const transformedLogs = logs.map(log => {
-      let operation = 'UNKNOWN';
-      if (log.op === 'query' || log.op === 'getmore' || log.op === 'command' && log.command?.find) operation = 'READ';
-      else if (log.op === 'insert' || log.command?.insert) operation = 'CREATE';
-      else if (log.op === 'update' || log.command?.update) operation = 'UPDATE';
-      else if (log.op === 'remove' || log.command?.delete) operation = 'DELETE';
-      else operation = String(log.op).toUpperCase();
-
-      let quality = 'Great';
-      if (log.millis > 500) quality = 'Poor';
-      else if (log.millis > 100) quality = 'Need Improvement';
-
-      return {
-        id: log._id ? log._id.toString() : Math.random().toString(36),
-        operation,
-        ns: log.ns,
-        millis: log.millis || 0,
-        ts: log.ts || new Date(),
-        query: JSON.stringify(log.command || log.query || log),
-        error: log.err ? true : false,
-        errMsg: log.err || null,
-        quality
-      };
-    });
-
-    res.status(200).json({ success: true, logs: transformedLogs });
+    
+    res.status(200).json({ success: true, dbStats, collections: collectionsList.sort((a,b) => b.count - a.count) });
   } catch (err) {
     res.status(200).json({ success: false, error: err.message });
   }
@@ -116,26 +101,26 @@ app.get('/api/indexes', async (req, res) => {
     const db = globalClient.db();
     const cols = await db.listCollections().toArray();
     let indexesList = [];
-    
+
     for (let c of cols) {
       if (c.name.startsWith('system.')) continue;
       try {
         const coll = db.collection(c.name);
-        const stats = await coll.aggregate([ { $indexStats: {} } ]).toArray();
+        const stats = await coll.aggregate([{ $indexStats: {} }]).toArray();
         const collStats = await db.command({ collStats: c.name });
-        
+
         stats.forEach(st => {
-           indexesList.push({
-             name: `${c.name}: ${st.name}`,
-             size: collStats.indexSizes[st.name] || 0,
-             usage: st.accesses?.ops || 0
-           });
-         });
+          indexesList.push({
+            name: `${c.name}: ${st.name}`,
+            size: collStats.indexSizes[st.name] || 0,
+            usage: st.accesses?.ops || 0
+          });
+        });
       } catch (err) {
         // M0 restrictions
       }
     }
-    res.status(200).json({ success: true, indexes: indexesList.sort((a,b) => b.usage - a.usage) });
+    res.status(200).json({ success: true, indexes: indexesList.sort((a, b) => b.usage - a.usage) });
   } catch (err) {
     res.status(200).json({ success: false, error: err.message });
   }
@@ -148,12 +133,12 @@ app.get('/api/export', async (req, res) => {
     await getClient(uri);
     const format = req.query.format || 'json';
     const db = globalClient.db();
-    
+
     let logs = [];
     try {
       logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
     } catch (e) {
-       return res.status(200).json({ success: false, error: 'Export failed: ' + e.message });
+      return res.status(200).json({ success: false, error: 'Export failed: ' + e.message });
     }
 
     if (format === 'json') {
@@ -172,7 +157,7 @@ app.get('/api/export', async (req, res) => {
       const wb = xlsx.utils.book_new();
       xlsx.utils.book_append_sheet(wb, ws, "MongoDB Logs");
       const excelBuffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
+
       res.setHeader('Content-disposition', 'attachment; filename=mongo_logs.xlsx');
       res.setHeader('Content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.send(excelBuffer);

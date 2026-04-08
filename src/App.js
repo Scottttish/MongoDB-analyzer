@@ -44,7 +44,7 @@ function App() {
         setIsConnected(true);
         setConnectionTimeMs(data.duration);
         setDbStatus('Normal');
-        fetchLogs();
+        fetchStats();
         fetchIndexes();
       } else {
         alert("Ошибка подключения: " + data.error);
@@ -57,25 +57,14 @@ function App() {
     setLoading(false);
   };
 
-  const fetchLogs = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     if (!isConnected || !dbUri) return;
     try {
-      const res = await fetch(`/api/logs?uri=${encodeURIComponent(dbUri)}`);
+      const res = await fetch(`/api/stats?uri=${encodeURIComponent(dbUri)}`);
       const data = await res.json();
       if (data.success) {
-        setLogs(data.logs);
-      } else {
-        setLogs([{
-          id: 'sys-error-' + Date.now(),
-          operation: 'ERROR',
-          ns: 'system.profile',
-          millis: 0,
-          ts: new Date(),
-          query: 'СИСТЕМНАЯ ОШИБКА: ' + (data.error || 'Неизвестная ошибка'),
-          error: true,
-          errMsg: 'База данных заблокировала чтение. Для работы инструмента требуется Root доступ к MongoDB (или локальная/VPS инсталляция).',
-          quality: 'Poor'
-        }]);
+        setStatsData(data.collections || []);
+        setDbInfo(data.dbStats || null);
       }
     } catch (e) {
       console.error(e);
@@ -112,29 +101,20 @@ function App() {
     if (isConnected) {
       interval = setInterval(() => {
         fetchStatus();
-        fetchLogs();
+        fetchStats();
         fetchIndexes();
       }, 60000);
     }
     return () => clearInterval(interval);
-  }, [isConnected, fetchStatus, fetchLogs, fetchIndexes]);
+  }, [isConnected, fetchStatus, fetchStats, fetchIndexes]);
 
   const handleExport = (format) => {
     window.open(`/api/export?format=${format}&uri=${encodeURIComponent(dbUri)}`, '_blank');
   };
 
-  const getOpColor = (op) => {
-    if (op === 'CREATE') return '#3b82f6';
-    if (op === 'READ') return '#10b981';
-    if (op === 'UPDATE') return '#f59e0b';
-    if (op === 'DELETE') return '#ef4444';
-    return '#9ca3af'; /* gray-400 */
-  };
-
-  const chartData = logs.slice(0, 50).reverse().map(l => ({
-    name: format(new Date(l.ts), 'HH:mm'),
-    latency: l.millis,
-    op: l.operation
+  const chartData = statsData.slice(0, 10).map(c => ({
+    name: c.name,
+    sizeKB: Number((c.size / 1024).toFixed(1))
   }));
 
   let connPct = Math.min((connectionTimeMs / 5000) * 100, 100);
@@ -197,22 +177,29 @@ function App() {
         </div>
 
         <div className="panel">
-          <h2>Распределение CRUD</h2>
-          {['CREATE', 'READ', 'UPDATE', 'DELETE'].map(op => {
-            const count = opCounts[op] || 0;
-            const pct = opCounts.TOTAL ? (count / opCounts.TOTAL) * 100 : 0;
-            return (
-              <div className="progress-group" key={op}>
-                <div className="progress-label">
-                  <span style={{color: getOpColor(op), fontWeight: 600}}>{op}</span>
-                  <span>{Math.round(pct)}%</span>
-                </div>
-                <div className="progress-bg">
-                  <div className="progress-fill" style={{width: `${pct}%`, background: getOpColor(op)}}></div>
-                </div>
+          <h2>Сводка хранилища (Native)</h2>
+          {dbInfo ? (
+            <div className="flex-col" style={{gap: '12px', marginTop: '16px'}}>
+              <div className="flex-row justify-between">
+                <span className="text-muted">Количество коллекций</span>
+                <span className="font-600">{dbInfo.collections || 0}</span>
               </div>
-            );
-          })}
+              <div className="flex-row justify-between">
+                <span className="text-muted">Объектов всего</span>
+                <span className="font-600">{dbInfo.objects || 0}</span>
+              </div>
+              <div className="flex-row justify-between">
+                <span className="text-muted">Размер данных</span>
+                <span className="font-600">{(dbInfo.dataSize / 1024 / 1024).toFixed(2)} MB</span>
+              </div>
+              <div className="flex-row justify-between">
+                <span className="text-muted">Размер индексов</span>
+                <span className="font-600">{(dbInfo.indexSize / 1024 / 1024).toFixed(2)} MB</span>
+              </div>
+            </div>
+          ) : (
+             <div className="text-muted" style={{marginTop: '16px'}}>Нет данных</div>
+          )}
         </div>
       </div>
 
@@ -251,60 +238,29 @@ function App() {
           </div>
         </div>
 
-        {/* Logs List & Errors */}
+        {/* Collections Native List */}
         <div className="panel" style={{display: 'flex', flexDirection: 'column'}}>
-          <div className="flex-row justify-between mb-4" style={{ position: 'relative' }}>
-            <div className="flex-row" style={{ flex: 1, gap: '20px' }}>
-              <h2 style={{ margin: 0, minWidth: 'max-content' }}>Журнал операций</h2>
-              <div className="w-full max-w-xs" style={{position: 'relative', flex: 1}}>
-                <Search size={16} color="#6b7280" style={{position: 'absolute', left: 10, top: 10}} />
-                <input type="text" className="config-input" style={{paddingLeft: '34px', padding: '8px 8px 8px 34px', width: '100%'}} placeholder="Поиск логов..." />
-              </div>
-            </div>
-            <div className="flex-row">
-              <button className="btn btn-secondary" style={{padding: '8px 16px'}} onClick={() => handleExport('json')}>
-                <Download size={16} /> JSON
-              </button>
-              <button className="btn btn-primary" style={{padding: '8px 16px'}} onClick={() => handleExport('excel')}>
-                <Download size={16} /> Excel
-              </button>
-            </div>
+          <div className="flex-row justify-between mb-4">
+            <h2 style={{ margin: 0, minWidth: 'max-content' }}>Статистика коллекций (Native db.command)</h2>
           </div>
-
-          {errorLogs.length > 0 && (
-            <div className="error-widget">
-              <div className="flex-row" style={{color: '#ef4444', fontWeight: 600}}>
-                <Eye size={20} />
-                <span>Виджет проблем и задержек</span>
-              </div>
-              <div className="error-controls">
-                <span>{errorIndex + 1} / {errorLogs.length} проблем</span>
-                <button className="err-btn" onClick={() => setErrorIndex(e => Math.max(0, e - 1))}><ArrowLeft size={16} /></button>
-                <button className="err-btn" onClick={() => setErrorIndex(e => Math.min(errorLogs.length - 1, e + 1))}><ArrowRight size={16} /></button>
-              </div>
-            </div>
-          )}
-
+          
           <div className="logs-container">
-            {logs.length > 0 ? logs.map((log, idx) => {
-              const isErrorTarget = errorLogs.length > 0 ? (errorLogs[errorIndex].id === log.id) : false;
-              let qualityRU = log.quality === 'Great' ? 'Отлично' : log.quality === 'Need Improvement' ? 'Требует улучшений' : 'Плохо';
-              return (
-                <div key={idx} id={`log-${log.id}`} className={`log-item ${log.error || log.quality === 'Poor' ? 'error-log' : ''} ${isErrorTarget ? 'highlighted' : ''}`}>
-                  <div className="log-header">
-                    <span className={`badge ${log.operation.toLowerCase()}`}>{log.operation}</span>
-                    <span className={`badge ${log.quality.toLowerCase().replace(' ', '-')}`}>{qualityRU} ({log.millis.toFixed(1)}мс)</span>
-                    <span className="text-muted">{format(new Date(log.ts), 'HH:mm:ss')}</span>
-                  </div>
-                  <div className="log-query">
-                    {log.query}
-                  </div>
-                  {log.errMsg && <div style={{color: '#ef4444', fontSize: '12px'}}>{log.errMsg}</div>}
+            {statsData.length > 0 ? statsData.map((c, i) => (
+              <div key={i} className="log-row" style={{background: 'var(--bg-main)', padding: '16px', marginBottom: '12px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', border: '1px solid var(--border-light)'}}>
+                <div style={{flex: 1}}>
+                  <div style={{fontWeight: 600, color: 'var(--text-main)', fontSize: '15px'}}>{c.name}</div>
+                  <div style={{fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px'}}>Объектов: {c.count} шт</div>
+                  <div style={{fontSize: '13px', color: 'var(--text-muted)'}}>Индексов: {c.nindexes} шт</div>
                 </div>
-              )
-            }) : (
+                <div style={{textAlign: 'right'}}>
+                  <div style={{fontWeight: 600, color: '#FF5A00', fontSize: '15px'}}>{(c.size / 1024).toFixed(1)} КБ (Data)</div>
+                  <div style={{fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px'}}>Ср. размер: {c.avgObjSize}B</div>
+                  <div style={{fontSize: '13px', color: '#10b981'}}>ВЕС Индексов: {(c.totalIndexSize / 1024).toFixed(1)} КБ</div>
+                </div>
+              </div>
+            )) : (
               <div className="text-muted" style={{textAlign: 'center', padding: '40px'}}>
-                Логов пока нет.
+                Нет коллекций для отображения. Обратите внимание, что системные коллекции скрыты.
               </div>
             )}
           </div>
