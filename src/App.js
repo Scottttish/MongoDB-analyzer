@@ -64,18 +64,6 @@ function App() {
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs);
-      } else if (data.error === 'FREE_TIER_EMPTY') {
-        setLogs([{
-          id: 'sys-error-' + Date.now(),
-          operation: 'SYSTEM',
-          ns: 'app.info',
-          millis: 0,
-          ts: new Date(),
-          query: 'БЕСПЛАТНЫЙ ТАРИФ (M0): Режим локальных логов активирован.',
-          error: false,
-          errMsg: 'База блокирует system.profile. Чтобы здесь появились логи, добавьте сохранение задержки и запросов в коллекцию "analyzer_logs" прямо в коде вашего основного приложения (создания счетов).',
-          quality: 'Great'
-        }]);
       } else {
         setLogs([{
           id: 'sys-error-' + Date.now(),
@@ -85,7 +73,7 @@ function App() {
           ts: new Date(),
           query: 'СИСТЕМНАЯ ОШИБКА: ' + (data.error || 'Неизвестная ошибка'),
           error: true,
-          errMsg: 'Произошла ошибка при загрузке логов.',
+          errMsg: 'База данных заблокировала чтение. Для работы инструмента требуется Root доступ к MongoDB (или локальная/VPS инсталляция).',
           quality: 'Poor'
         }]);
       }

@@ -71,11 +71,7 @@ app.get('/api/logs', async (req, res) => {
       logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
     } catch (e) {
       if (e.message.includes('not authorized') || e.message.toLowerCase().includes('not allowed')) {
-        // FREE TIER FALLBACK: read from manual collection
-        logs = await db.collection('analyzer_logs').find({}).sort({ ts: -1 }).limit(1000).toArray();
-        if (logs.length === 0) {
-          return res.status(200).json({ success: false, error: 'FREE_TIER_EMPTY' });
-        }
+         return res.status(200).json({ success: false, error: 'Ограничение тарифа MongoDB Atlas: У вас нет прав (not authorized) на чтение system.profile. Используйте локальную MongoDB или VPS без ограничений.' });
       } else {
         throw e;
       }
@@ -157,7 +153,7 @@ app.get('/api/export', async (req, res) => {
     try {
       logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(1000).toArray();
     } catch (e) {
-      logs = await db.collection('analyzer_logs').find({}).sort({ ts: -1 }).limit(1000).toArray();
+       return res.status(200).json({ success: false, error: 'Export failed: ' + e.message });
     }
 
     if (format === 'json') {
