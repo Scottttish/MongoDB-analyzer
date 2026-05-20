@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import './index.css';
 import { 
   Database, RefreshCw, Activity, Clock, 
-  HardDrive, Layout, Settings
+  HardDrive
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { 
@@ -11,8 +11,8 @@ import {
 } from 'recharts';
 
 const OP_COLORS = {
-  READ: '#10b981',
-  CREATE: '#3b82f6',
+  READ: '#24a1de',
+  CREATE: '#10b981',
   UPDATE: '#f59e0b',
   DELETE: '#ef4444'
 };
@@ -28,7 +28,7 @@ function App() {
   const [dbUri, setDbUri] = useState('');
   const [loading, setLoading] = useState(false);
   const [showUpdated, setShowUpdated] = useState(false);
-  const [storageView, setStorageView] = useState('collections'); // 'collections' | 'indexes'
+  const [storageView, setStorageView] = useState('collections');
   
   const [stats, setStats] = useState({
     collections: [],
@@ -38,38 +38,43 @@ function App() {
     loadData: [],
     crud: { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 }
   });
+  
+  const [error, setError] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!dbUri) return;
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/activity?uri=${encodeURIComponent(dbUri)}`);
+      const res = await fetch(`/api/activity?uri=${encodeURIComponent(dbUri.trim())}`);
       const data = await res.json();
       
-      const statsRes = await fetch(`/api/stats?uri=${encodeURIComponent(dbUri)}`);
+      if (!data.success) {
+        throw new Error(data.error || 'Ошибка подключения');
+      }
+      
+      const statsRes = await fetch(`/api/stats?uri=${encodeURIComponent(dbUri.trim())}`);
       const statsData = await statsRes.json();
 
-      const idxRes = await fetch(`/api/indexes?uri=${encodeURIComponent(dbUri)}`);
+      const idxRes = await fetch(`/api/indexes?uri=${encodeURIComponent(dbUri.trim())}`);
       const idxData = await idxRes.json();
 
-      if (data.success) {
-        setStats({
-          logs: data.logs,
-          colStats: data.colStats,
-          loadData: data.loadData,
-          collections: statsData.collections || [],
-          indexes: idxData.indexes || [],
-          crud: data.logs.reduce((acc, log) => {
-            acc[log.op] = (acc[log.op] || 0) + 1;
-            return acc;
-          }, { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 })
-        });
-        
-        setShowUpdated(true);
-        setTimeout(() => setShowUpdated(false), 3000);
-      }
+      setStats({
+        logs: data.logs,
+        colStats: data.colStats,
+        loadData: data.loadData,
+        collections: statsData.collections || [],
+        indexes: idxData.indexes || [],
+        crud: data.logs.reduce((acc, log) => {
+          acc[log.op] = (acc[log.op] || 0) + 1;
+          return acc;
+        }, { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 })
+      });
+      
+      setShowUpdated(true);
+      setTimeout(() => setShowUpdated(false), 3000);
     } catch (e) {
-      console.error(e);
+      setError(e.message);
     }
     setLoading(false);
   }, [dbUri]);
@@ -82,14 +87,13 @@ function App() {
   const storageItems = storageView === 'collections' ? stats.collections : stats.indexes;
   const totalStorageSize = storageItems.reduce((acc, item) => acc + item.size, 0) || 1;
 
-  // Custom Segmented Progress Bar Component
   const SegmentedProgress = ({ items }) => {
     return (
       <div className="storage-widget-container">
         <div className="segmented-bar">
           {items.map((item, i) => {
             const pct = (item.size / totalStorageSize) * 100;
-            const color = `hsl(${200 + (i * 30)}, 70%, 50%)`;
+            const color = `hsl(${210 + (i * 40)}, 70%, 50%)`;
             return (
               <div 
                 key={i} 
@@ -103,7 +107,7 @@ function App() {
         <div className="legend-list">
           {items.map((item, i) => {
             const pct = (item.size / totalStorageSize) * 100;
-            const color = `hsl(${200 + (i * 30)}, 70%, 50%)`;
+            const color = `hsl(${210 + (i * 40)}, 70%, 50%)`;
             return (
               <div key={i} className="legend-item">
                 <div className="legend-left">
@@ -111,7 +115,7 @@ function App() {
                   <span className="item-name">{item.name}</span>
                 </div>
                 <div className="legend-right">
-                  <span className="legend-size">{(item.size / 1024 / 1024).toFixed(1)} MB</span>
+                  <span className="legend-size">{(item.size / 1024 / 1024).toFixed(2)} MB</span>
                   <div className="pct-box" style={{ background: color + '15', color: color }}>
                     {Math.round(pct)}%
                   </div>
@@ -124,7 +128,6 @@ function App() {
     );
   };
 
-  // Prepare chart data: Group logs by time bucket (e.g., last 10 minutes)
   const chartData = stats.logs.reduce((acc, log) => {
     const time = format(new Date(log.ts), 'HH:mm');
     let bucket = acc.find(b => b.time === time);
@@ -134,33 +137,42 @@ function App() {
     }
     bucket[log.op] = (bucket[log.op] || 0) + log.millis;
     return acc;
-  }, []).slice(-10);
+  }, []).slice(-15);
 
   return (
     <div className="dashboard">
       <header className="header-config">
         <div className="config-input-group">
-          <Database size={14} color="#24a1de" />
+          <Database size={16} color="#24a1de" />
           <input 
             type="text" 
             className="config-input" 
-            placeholder="MONGO_URI"
+            placeholder="URL базы данных (mongodb+srv://...)"
             value={dbUri}
             onChange={(e) => setDbUri(e.target.value)}
           />
           <button className="btn btn-primary" onClick={handleConnect} disabled={loading}>
-            {loading ? <RefreshCw className="animate-spin" size={14} /> : 'Обновить данные'}
+            {loading ? <RefreshCw className="animate-spin" size={14} /> : 'Соединить и Обновить'}
           </button>
         </div>
-        <div className="header-actions">
-          <div className={`last-updated ${showUpdated ? 'visible' : ''}`}>
-            Обновлено успешно
-          </div>
-          <button className="btn btn-secondary btn-icon" title="Layout"><Layout size={14} /></button>
-          <button className="btn btn-secondary btn-icon" title="Settings"><Settings size={14} /></button>
+        <div className={`last-updated ${showUpdated ? 'visible' : ''}`}>
+           Успешно обновлено
         </div>
       </header>
-      <main className="main-content">
+
+      {error && (
+        <div className="panel" style={{ borderColor: 'var(--error)', background: '#fffafa' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--error)' }}>
+             <span>❌</span>
+             <div>
+               <strong>Ошибка подключения:</strong> {error}
+               <p style={{fontSize: '11px', marginTop: '4px'}}>Проверьте IP-whitelist в Atlas и правильность URL.</p>
+             </div>
+           </div>
+        </div>
+      )}
+
+      <main className="main-content" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div className="crud-grid">
           {Object.entries(stats.crud).map(([op, val]) => {
             const pct = Math.round((val / totalOps) * 100);
@@ -168,15 +180,14 @@ function App() {
               <div key={op} className="panel crud-card">
                 <div className="crud-header">
                   <span className="crud-label">{op}</span>
-                  <div className="crud-icon">
+                  <div className="crud-icon-box" style={{ background: OP_COLORS[op] + '15' }}>
                     {OP_ICONS[op]}
                   </div>
                 </div>
                 <div className="crud-value">{val}</div>
                 <div className="crud-footer">
-                  <span className="footer-stat">{pct}% от всех</span>
-                  <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
-                    {pct}%
+                   <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
+                    {pct}% от трафика
                   </div>
                 </div>
               </div>
@@ -184,36 +195,47 @@ function App() {
           })}
         </div>
 
-        <div className="panel" style={{ height: '340px' }}>
-          <h3><Activity size={14} color="#24a1de" /> Нагрузка операций (ms)</h3>
-          <div className="chart-container">
+        <div className="panel" style={{ minHeight: '420px' }}>
+          <h3><Activity size={16} color="#24a1de" /> Нагрузка операций (ms)</h3>
+          <div className="chart-container" style={{ height: '320px', marginTop: '20px' }}>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
                   <YAxis stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
                   <RechartsTooltip 
                     cursor={{fill: 'rgba(0,0,0,0.02)'}}
-                    contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '8px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                    contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
                   />
-                  <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} radius={[0, 0, 0, 0]} barSize={30} />
-                  <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} radius={[0, 0, 0, 0]} barSize={30} />
-                  <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} radius={[0, 0, 0, 0]} barSize={30} />
-                  <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[6, 6, 6, 6]} barSize={30} />
+                  <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} barSize={32} />
+                  <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} barSize={32} />
+                  <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} barSize={32} />
+                  <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[8, 8, 0, 0]} barSize={32} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#95a5a6', flexDirection: 'column', gap: '10px' }}>
-                <span>Нет данных профилирования</span>
-                <span style={{fontSize: '11px'}}>Включите профилирование в MongoDB</span>
+              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#95a5a6', flexDirection: 'column', gap: '15px' }}>
+                <Activity size={40} opacity={0.2} />
+                <span>Нет данных. Включение Profiling Level 2 в MongoDB...</span>
               </div>
             )}
           </div>
         </div>
 
+        <div className="panel storage-widget">
+          <h3><HardDrive size={16} color="#24a1de" /> Использование хранилища</h3>
+          <div className="storage-tabs" style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+             <button className={`btn ${storageView === 'collections' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('collections')}>Коллекции</button>
+             <button className={`btn ${storageView === 'indexes' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('indexes')}>Индексы</button>
+          </div>
+          <div className="storage-content">
+            <SegmentedProgress items={storageItems} />
+          </div>
+        </div>
+
         <div className="panel log-panel">
-          <h3><Clock size={14} color="#24a1de" /> Журнал операций (Real-time)</h3>
-          <div className="log-table-wrapper">
+          <h3><Clock size={16} color="#24a1de" /> Журнал операций (Real-time)</h3>
+          <div className="log-table-wrapper" style={{ marginTop: '16px' }}>
             <table className="log-table">
               <thead>
                 <tr>
@@ -249,8 +271,8 @@ function App() {
                   </tr>
                 )) : (
                    <tr>
-                     <td colSpan="5" style={{textAlign: 'center', padding: '40px', color: '#95a5a6'}}>
-                        Пусто. Ожидание данных...
+                     <td colSpan="5" style={{textAlign: 'center', padding: '60px', color: '#95a5a6'}}>
+                        Ожидание данных...
                      </td>
                    </tr>
                 )}
@@ -259,22 +281,8 @@ function App() {
           </div>
         </div>
       </main>
-
-      <aside className="sidebar-right">
-        <div className="panel storage-widget">
-          <h3><HardDrive size={14} color="#24a1de" /> Использование хранилища</h3>
-          <div className="storage-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-             <button className={`btn ${storageView === 'collections' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('collections')} style={{fontSize: '11px', padding: '4px 10px'}}>Коллекции</button>
-             <button className={`btn ${storageView === 'indexes' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('indexes')} style={{fontSize: '11px', padding: '4px 10px'}}>Индексы</button>
-          </div>
-          <div className="storage-content">
-            <SegmentedProgress items={storageItems} />
-          </div>
-        </div>
-      </aside>
     </div>
   );
 }
 
 export default App;
-

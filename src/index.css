@@ -33,23 +33,22 @@ body {
 }
 
 .dashboard {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  grid-template-rows: auto 1fr;
-  height: 100vh;
-  gap: 16px;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 24px;
+  padding: 24px;
 }
 
 /* Header Config Bar */
 .header-config {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--bg-panel);
-  padding: 8px 16px;
-  border-radius: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
@@ -57,84 +56,59 @@ body {
 .config-input-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex: 1;
-  max-width: 500px;
 }
 
 .config-input {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
   outline: none;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Sidebar Right */
-.sidebar-right {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  background: #f8f9fa;
 }
 
 /* Panels */
 .panel {
   background: var(--bg-panel);
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid var(--border);
-  padding: 16px;
+  padding: 24px;
   box-shadow: var(--shadow);
-  position: relative;
 }
 
 .panel h3 {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 20px;
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-/* CRUD Counter Cards (Image 1 Style) */
+/* CRUD Counter Cards */
 .crud-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 24px;
 }
 
 .crud-card {
-  padding: 16px;
+  padding: 20px;
+  min-height: 140px;
+}
+
+.crud-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
-  flex-direction: column;
-  min-height: 120px;
-  justify-content: space-between;
-}
-
-.crud-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.crud-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main);
-  opacity: 0.9;
-}
-
-.crud-icon {
-  font-size: 16px;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
 }
 
 .crud-value {

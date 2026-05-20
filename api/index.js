@@ -97,6 +97,7 @@ app.get('/api/activity', async (req, res) => {
 
     // Activity Logs - ONLY REAL DATA
     let logs = [];
+    let profilingError = null;
     try {
       logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(20).toArray();
       // Map system.profile fields to our format
@@ -108,6 +109,7 @@ app.get('/api/activity', async (req, res) => {
         category: l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный'
       }));
     } catch (e) {
+      profilingError = e.message;
       console.error("system.profile access failed:", e.message);
     }
 
@@ -117,7 +119,8 @@ app.get('/api/activity', async (req, res) => {
       colStats, 
       loadData, 
       realLoad,
-      profilingEnabled: logs.length > 0
+      profilingEnabled: logs.length > 0,
+      profilingError: profilingError
     });
   } catch (err) {
     res.status(200).json({ success: false, error: err.message });
