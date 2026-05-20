@@ -133,10 +133,21 @@ app.get('/api/activity', async (req, res) => {
         // Final fallback for labels
         const finalOp = opType === 'QUERY' ? 'READ' : opType === 'INSERT' ? 'CREATE' : opType === 'REMOVE' ? 'DELETE' : opType;
 
+        // Try to identify used index from planSummary
+        let indexName = '-';
+        const plan = l.planSummary || '';
+        if (plan.includes('IXSCAN')) {
+          const match = plan.match(/IXSCAN\s*\{(.*?)\}/);
+          indexName = match ? match[1] : 'Indexed';
+        } else if (plan.includes('COLLSCAN')) {
+          indexName = 'COLLSCAN (No Index)';
+        }
+
         return {
           ts: l.ts,
           op: ['READ', 'CREATE', 'UPDATE', 'DELETE'].includes(finalOp) ? finalOp : 'OTHER',
           millis: l.millis,
+          indexUsed: indexName,
           command: cmd,
           category: l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный'
         };
@@ -268,9 +279,19 @@ app.get('/api/export', async (req, res) => {
         const pad = (n) => n.toString().padStart(2, '0');
         const formattedDate = `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
         
+        let indexName = '-';
+        const plan = l.planSummary || '';
+        if (plan.includes('IXSCAN')) {
+          const match = plan.match(/IXSCAN\s*\{(.*?)\}/);
+          indexName = match ? match[1] : 'Indexed';
+        } else if (plan.includes('COLLSCAN')) {
+          indexName = 'COLLSCAN (No Index)';
+        }
+
         return {
           'Дата и Время': formattedDate,
-          'Тип': l.op,
+          'Тип': l.op === 'query' ? 'READ' : l.op.toUpperCase(),
+          'Индекс': indexName,
           'Длительность (ms)': l.millis,
           'Статус': l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный',
           'Команда': JSON.stringify(l.command || l.query || {})

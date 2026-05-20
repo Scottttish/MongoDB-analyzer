@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import './index.css';
 import { 
   Database, RefreshCw, Activity, Clock, 
-  HardDrive
+  HardDrive, Upload
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { 
@@ -240,7 +240,7 @@ function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3><Clock size={16} color="#24a1de" /> Журнал операций</h3>
             <button className="btn btn-secondary" onClick={handleExport}>
-               📥 Сохранить как Excel
+               <Upload size={14} /> Excel
             </button>
           </div>
           <div className="log-table-wrapper">
@@ -249,6 +249,7 @@ function App() {
                 <tr>
                   <th>Тип</th>
                   <th>Дата и Время</th>
+                  <th>Индекс</th>
                   <th>Запрос</th>
                   <th>Длительность</th>
                   <th>Статус</th>
@@ -267,6 +268,11 @@ function App() {
                       <br/>
                       <span style={{fontSize: '13px', color: '#000'}}>{format(new Date(log.ts), 'HH:mm:ss')}</span>
                     </td>
+                    <td>
+                      <span className="index-badge" style={{color: log.indexUsed.includes('COLLSCAN') ? 'var(--error)' : 'var(--text-muted)'}}>
+                        {log.indexUsed}
+                      </span>
+                    </td>
                     <td className="query-cell">
                       <div className="query-text-full">{JSON.stringify(log.command)}</div>
                     </td>
@@ -283,7 +289,7 @@ function App() {
                   </tr>
                 )) : (
                    <tr>
-                     <td colSpan="5" style={{textAlign: 'center', padding: '60px', color: '#95a5a6'}}>
+                     <td colSpan="6" style={{textAlign: 'center', padding: '60px', color: '#95a5a6'}}>
                         Логи появятся при активности в базе...
                      </td>
                    </tr>

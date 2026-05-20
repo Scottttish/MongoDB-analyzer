@@ -246,10 +246,24 @@ body {
   font-size: 13px;
 }
 
-.log-table th:nth-child(1), .log-table td:nth-child(1) { width: 90px; }
-.log-table th:nth-child(2), .log-table td:nth-child(2) { width: 110px; }
-.log-table th:nth-child(4), .log-table td:nth-child(4) { width: 110px; }
-.log-table th:nth-child(5), .log-table td:nth-child(5) { width: 110px; }
+.log-table th:nth-child(1), .log-table td:nth-child(1) { width: 80px; }
+.log-table th:nth-child(2), .log-table td:nth-child(2) { width: 140px; }
+.log-table th:nth-child(3), .log-table td:nth-child(3) { width: 140px; }
+.log-table th:nth-child(5), .log-table td:nth-child(5) { width: 100px; }
+.log-table th:nth-child(6), .log-table td:nth-child(6) { width: 100px; }
+
+.index-badge {
+  font-size: 11px;
+  font-family: monospace;
+  background: #f1f3f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .badge-solid {
   color: white;
