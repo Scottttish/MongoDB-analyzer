@@ -85,11 +85,11 @@ function App() {
   // Custom Segmented Progress Bar Component
   const SegmentedProgress = ({ items }) => {
     return (
-      <div className="segmented-widget">
+      <div className="storage-widget-container">
         <div className="segmented-bar">
           {items.map((item, i) => {
             const pct = (item.size / totalStorageSize) * 100;
-            const color = `hsl(${190 + (i * 25)}, 70%, 50%)`;
+            const color = `hsl(${200 + (i * 30)}, 70%, 50%)`;
             return (
               <div 
                 key={i} 
@@ -103,16 +103,16 @@ function App() {
         <div className="legend-list">
           {items.map((item, i) => {
             const pct = (item.size / totalStorageSize) * 100;
-            const color = `hsl(${190 + (i * 25)}, 70%, 50%)`;
+            const color = `hsl(${200 + (i * 30)}, 70%, 50%)`;
             return (
               <div key={i} className="legend-item">
                 <div className="legend-left">
                   <div className="dot" style={{ background: color }} />
-                  <span>{item.name}</span>
+                  <span className="item-name">{item.name}</span>
                 </div>
                 <div className="legend-right">
                   <span className="legend-size">{(item.size / 1024 / 1024).toFixed(1)} MB</span>
-                  <div className="pct-box" style={{ background: color + '20', color: color }}>
+                  <div className="pct-box" style={{ background: color + '15', color: color }}>
                     {Math.round(pct)}%
                   </div>
                 </div>
@@ -160,7 +160,6 @@ function App() {
           <button className="btn btn-secondary btn-icon" title="Settings"><Settings size={14} /></button>
         </div>
       </header>
-
       <main className="main-content">
         <div className="crud-grid">
           {Object.entries(stats.crud).map(([op, val]) => {
@@ -175,8 +174,8 @@ function App() {
                 </div>
                 <div className="crud-value">{val}</div>
                 <div className="crud-footer">
-                  <span>Реальный трафик (ops)</span>
-                  <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '20', color: OP_COLORS[op] }}>
+                  <span className="footer-stat">{pct}% от всех</span>
+                  <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
                     {pct}%
                   </div>
                 </div>
@@ -190,30 +189,30 @@ function App() {
           <div className="chart-container">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} />
-                  <YAxis stroke="#95a5a6" fontSize={11} />
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
+                  <YAxis stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
                   <RechartsTooltip 
                     cursor={{fill: 'rgba(0,0,0,0.02)'}}
-                    contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '8px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
                   />
-                  <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} radius={[0, 0, 0, 0]} barSize={30} />
+                  <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} radius={[0, 0, 0, 0]} barSize={30} />
+                  <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} radius={[0, 0, 0, 0]} barSize={30} />
+                  <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[6, 6, 6, 6]} barSize={30} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#95a5a6', flexDirection: 'column', gap: '10px' }}>
                 <span>Нет данных профилирования</span>
-                <span style={{fontSize: '11px'}}>Включите профилирование в MongoDB или совершите действия</span>
+                <span style={{fontSize: '11px'}}>Включите профилирование в MongoDB</span>
               </div>
             )}
           </div>
         </div>
 
         <div className="panel log-panel">
-          <h3><Clock size={14} color="#24a1de" /> Журнал операций (Real-time system.profile)</h3>
+          <h3><Clock size={14} color="#24a1de" /> Журнал операций (Real-time)</h3>
           <div className="log-table-wrapper">
             <table className="log-table">
               <thead>
@@ -251,7 +250,7 @@ function App() {
                 )) : (
                    <tr>
                      <td colSpan="5" style={{textAlign: 'center', padding: '40px', color: '#95a5a6'}}>
-                        Пусто. Ожидание данных из Базы Данных...
+                        Пусто. Ожидание данных...
                      </td>
                    </tr>
                 )}
@@ -263,7 +262,7 @@ function App() {
 
       <aside className="sidebar-right">
         <div className="panel storage-widget">
-          <h3><HardDrive size={14} color="#24a1de" /> Хранилище (dbStats)</h3>
+          <h3><HardDrive size={14} color="#24a1de" /> Использование хранилища</h3>
           <div className="storage-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
              <button className={`btn ${storageView === 'collections' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('collections')} style={{fontSize: '11px', padding: '4px 10px'}}>Коллекции</button>
              <button className={`btn ${storageView === 'indexes' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('indexes')} style={{fontSize: '11px', padding: '4px 10px'}}>Индексы</button>
