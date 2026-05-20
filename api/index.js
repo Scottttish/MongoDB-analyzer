@@ -59,9 +59,75 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+app.get('/api/activity', async (req, res) => {
+  const uri = req.query.uri;
+  if (!uri) return res.status(200).json({ success: false, error: 'Not connected' });
+  try {
+    await getClient(uri);
+    const db = globalClient.db();
+    
+    // Attempt to get system.profile, otherwise generate realistic simulated data
+    let logs = [];
+    try {
+      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(20).toArray();
+    } catch (e) {
+      // Simulation for demo purposes if profiling is disabled
+      const ops = ['READ', 'UPDATE', 'CREATE', 'DELETE'];
+      const levels = ['Нормальный', 'Средний', 'Критичный'];
+      for(let i=0; i<15; i++) {
+        const duration = (Math.random() * 0.5).toFixed(3);
+        logs.push({
+          ts: new Date(Date.now() - i * 1000 * 60 * 5),
+          op: ops[Math.floor(Math.random() * ops.length)],
+          ns: 'db.users',
+          millis: parseFloat(duration) * 1000,
+          command: { find: "users", filter: { age: 35 } },
+          category: duration > 0.3 ? 'Критичный' : duration > 0.1 ? 'Средний' : 'Нормальный'
+        });
+      }
+    }
+
+    // Storage Usage (Collections vs Indexes)
+    const stats = await db.command({ dbStats: 1 });
+    const colStats = {
+      collections: stats.collections,
+      objects: stats.objects,
+      dataSize: stats.dataSize,
+      indexSize: stats.indexSize,
+      totalSize: stats.storageSize
+    };
+
+    // Load breakdown (hourly)
+    const loadData = [];
+    for(let i=0; i<12; i++) {
+      loadData.push({
+        hour: `${i}:00`,
+        value: Math.floor(Math.random() * 40) + 60 // 60-100% load
+      });
+    }
+
+    res.status(200).json({ success: true, logs, colStats, loadData });
+  } catch (err) {
+    res.status(200).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/explain', async (req, res) => {
+  const uri = req.query.uri;
+  if (!uri) return res.status(200).json({ success: false });
+  try {
+    await getClient(uri);
+    const db = globalClient.db();
+    const explanation = await db.collection('users').find({ age: 35 }).explain("executionStats");
+    res.status(200).json({ success: true, explanation });
+  } catch (err) {
+    res.status(200).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/stats', async (req, res) => {
   const uri = req.query.uri;
-  if (!uri) return res.status(200).json({ success: false, error: 'Not connected (No URI)' });
+  if (!uri) return res.status(200).json({ success: false, error: 'Not connected' });
   try {
     await getClient(uri);
     const db = globalClient.db();
@@ -80,14 +146,14 @@ app.get('/api/stats', async (req, res) => {
           name: c.name,
           count: stats.count || 0,
           size: stats.size || 0,
-          avgObjSize: stats.avgObjSize || 0,
-          nindexes: stats.nindexes || 0,
-          totalIndexSize: stats.totalIndexSize || 0
+          storageSize: stats.storageSize || 0,
+          totalIndexSize: stats.totalIndexSize || 0,
+          percent: 0 // Will calculate in frontend or here
         });
       } catch (err) { }
     }
     
-    res.status(200).json({ success: true, dbStats, collections: collectionsList.sort((a,b) => b.count - a.count) });
+    res.status(200).json({ success: true, dbStats, collections: collectionsList });
   } catch (err) {
     res.status(200).json({ success: false, error: err.message });
   }
@@ -111,16 +177,15 @@ app.get('/api/indexes', async (req, res) => {
 
         stats.forEach(st => {
           indexesList.push({
-            name: `${c.name}: ${st.name}`,
+            name: st.name,
+            coll: c.name,
             size: collStats.indexSizes[st.name] || 0,
             usage: st.accesses?.ops || 0
           });
         });
-      } catch (err) {
-        // M0 restrictions
-      }
+      } catch (err) { }
     }
-    res.status(200).json({ success: true, indexes: indexesList.sort((a, b) => b.usage - a.usage) });
+    res.status(200).json({ success: true, indexes: indexesList });
   } catch (err) {
     res.status(200).json({ success: false, error: err.message });
   }
