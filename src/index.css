@@ -229,18 +229,37 @@ body {
 }
 
 /* Operation Log */
+.log-table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
 .log-table th {
+  text-align: left;
+  padding: 12px 16px;
   font-size: 11px;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border);
 }
 
 .log-table td {
-  padding: 8px;
+  padding: 16px;
   border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  word-wrap: break-word;
 }
+
+.log-table th:nth-child(1), .log-table td:nth-child(1) { width: 90px; } /* Тип */
+.log-table th:nth-child(2), .log-table td:nth-child(2) { width: 110px; } /* Время */
+.log-table th:nth-child(4), .log-table td:nth-child(4) { width: 110px; } /* Длительность */
+.log-table th:nth-child(5), .log-table td:nth-child(5) { width: 110px; } /* Статус */
 
 .badge-solid {
   color: white;
