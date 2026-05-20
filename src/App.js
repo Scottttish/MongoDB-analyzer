@@ -54,7 +54,6 @@ function App() {
           crud
         });
         
-        setIsConnected(true);
         setShowUpdated(true);
         setTimeout(() => setShowUpdated(false), 3000);
       }
