@@ -263,14 +263,20 @@ app.get('/api/export', async (req, res) => {
       res.setHeader('Content-type', 'application/json');
       res.send(JSON.stringify(logs, null, 2));
     } else if (format === 'excel') {
-      const ws = xlsx.utils.json_to_sheet(logs.map(l => ({
-        timestamp: l.ts,
-        operation: l.op,
-        namespace: l.ns,
-        latency_ms: l.millis,
-        error: l.err || 'None',
-        query: JSON.stringify(l.command || l.query || {})
-      })));
+      const data = logs.map(l => {
+        const date = new Date(l.ts);
+        const pad = (n) => n.toString().padStart(2, '0');
+        const formattedDate = `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        
+        return {
+          'Дата и Время': formattedDate,
+          'Тип': l.op,
+          'Длительность (ms)': l.millis,
+          'Статус': l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный',
+          'Команда': JSON.stringify(l.command || l.query || {})
+        };
+      });
+      const ws = xlsx.utils.json_to_sheet(data);
       const wb = xlsx.utils.book_new();
       xlsx.utils.book_append_sheet(wb, ws, "MongoDB Logs");
       const excelBuffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
