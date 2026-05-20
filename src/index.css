@@ -1,35 +1,26 @@
 :root {
-  --primary: #24a1de; /* Telegram Blue */
-  --primary-dark: #1c8ac0;
-  --bg-main: #f4f7f9;
+  --primary: #24a1de;
+  --bg-main: #f0f2f5;
   --bg-panel: #ffffff;
-  --text-main: #2c3e50;
-  --text-muted: #7f8c8d;
+  --text-main: #000000;
+  --text-muted: #8e8e93;
   --border: #e6ebf0;
-  --success: #27ae60;
-  --warning: #f1c40f;
-  --error: #e74c3c;
-  --read: #10b981;
-  --create: #3b82f6;
-  --update: #f59e0b;
-  --delete: #ef4444;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow: 0 4px 12px rgba(0,0,0,0.05);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
 }
 
 * {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, sans-serif;
 }
 
 body {
-  background-color: var(--bg-main);
+  background: var(--bg-main);
   color: var(--text-main);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 
 .dashboard {
@@ -81,7 +72,6 @@ body {
   background: #f8f9fa;
 }
 
-/* Sidebar Vertical CRUD */
 /* CRUD Counter Cards - Horizontal on TOP */
 .crud-grid {
   display: grid;
@@ -90,8 +80,8 @@ body {
 }
 
 .crud-card {
-  padding: 20px;
-  min-height: 140px;
+  padding: 24px;
+  min-height: 120px;
 }
 
 .middle-row {
@@ -120,37 +110,36 @@ body {
   gap: 8px;
 }
 
-.crud-card {
-  padding: 20px;
-  min-height: 120px;
-}
-
-.crud-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.crud-value {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 10px 0;
-  color: #000;
-}
-
-.crud-footer {
+.crud-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  margin-bottom: 12px;
 }
 
-.footer-stat {
+.crud-label {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.crud-value-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.crud-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #000;
+}
+
+.crud-icon-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
 }
 
 .crud-pct-badge {
@@ -160,7 +149,7 @@ body {
   font-size: 11px;
 }
 
-/* Storage Widget (Image 2 Style) */
+/* Storage Widget */
 .storage-widget-container {
   padding: 10px 0;
 }
@@ -178,12 +167,6 @@ body {
 .bar-segment {
   height: 100%;
   transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.bar-segment:hover {
-  filter: brightness(0.9);
-  transform: scaleY(1.1);
 }
 
 .legend-list {
@@ -236,11 +219,6 @@ body {
   text-align: center;
 }
 
-/* Operation Chart */
-.chart-container {
-  height: 280px;
-}
-
 /* Operation Log */
 .log-table-wrapper {
   overflow-x: auto;
@@ -266,13 +244,12 @@ body {
   padding: 16px;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
-  word-wrap: break-word;
 }
 
-.log-table th:nth-child(1), .log-table td:nth-child(1) { width: 90px; } /* Тип */
-.log-table th:nth-child(2), .log-table td:nth-child(2) { width: 110px; } /* Время */
-.log-table th:nth-child(4), .log-table td:nth-child(4) { width: 110px; } /* Длительность */
-.log-table th:nth-child(5), .log-table td:nth-child(5) { width: 110px; } /* Статус */
+.log-table th:nth-child(1), .log-table td:nth-child(1) { width: 90px; }
+.log-table th:nth-child(2), .log-table td:nth-child(2) { width: 110px; }
+.log-table th:nth-child(4), .log-table td:nth-child(4) { width: 110px; }
+.log-table th:nth-child(5), .log-table td:nth-child(5) { width: 110px; }
 
 .badge-solid {
   color: white;
@@ -283,15 +260,16 @@ body {
   display: inline-block;
 }
 
-.query-text {
+.query-text-full {
   font-family: monospace;
   background: #f8f9fa;
-  padding: 2px 6px;
-  border-radius: 4px;
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #444;
+  word-break: break-all;
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
 }
 
 .time-cell {
@@ -313,13 +291,6 @@ body {
 
 .btn-primary { background: var(--primary); color: white; }
 .btn-secondary { background: white; border-color: var(--border); color: var(--text-main); }
-.btn-icon { padding: 4px; min-width: 28px; }
 
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

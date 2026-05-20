@@ -17,13 +17,6 @@ const OP_COLORS = {
   DELETE: '#ef4444'
 };
 
-const OP_ICONS = {
-  READ: <span>👁️</span>,
-  CREATE: <span>✨</span>,
-  UPDATE: <span>🔄</span>,
-  DELETE: <span>🗑️</span>
-};
-
 function App() {
   const [dbUri, setDbUri] = useState('');
   const [loading, setLoading] = useState(false);
@@ -111,7 +104,7 @@ function App() {
                   <span className="item-name">{item.name}</span>
                 </div>
                 <div className="legend-right">
-                  <span className="legend-size">{(item.size / 1024 / 1024).toFixed(2)} MB</span>
+                  <span className="legend-size">{(item.size / 1024).toFixed(0)} KB</span>
                   <div className="pct-box" style={{ background: color + '15', color: color }}>
                     {Math.round(pct)}%
                   </div>
@@ -166,28 +159,27 @@ function App() {
 
       <main className="main-content" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div className="crud-grid">
-          {Object.entries(stats.crud).map(([op, val]) => {
+          {['READ', 'CREATE', 'UPDATE', 'DELETE'].map((op) => {
+            const val = stats.crud[op] || 0;
             const pct = Math.round((val / totalOps) * 100);
             return (
               <div key={op} className="panel crud-card">
                 <div className="crud-header">
                   <span className="crud-label">{op}</span>
-                  <div className="crud-icon-box" style={{ background: OP_COLORS[op] + '15' }}>
-                    {OP_ICONS[op]}
+                  <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
+                    {pct}%
                   </div>
                 </div>
-                <div className="crud-value">{val}</div>
-                <div className="crud-footer">
-                   <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
-                    {pct}% от трафика
-                  </div>
+                <div className="crud-value-row">
+                  <div className="crud-icon-box" style={{ background: OP_COLORS[op] }} />
+                  <div className="crud-value">{val}</div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        <div className="middle-row" style={{ display: 'grid', gridTemplateColumns: '1fr 450px', gap: '24px' }}>
+        <div className="middle-row">
           <div className="panel" style={{ minHeight: '420px' }}>
             <h3><Activity size={16} color="#24a1de" /> Нагрузка операций</h3>
             <div className="chart-container" style={{ height: '320px', marginTop: '20px' }}>
@@ -250,7 +242,7 @@ function App() {
                     </td>
                     <td className="time-cell">{format(new Date(log.ts), 'HH:mm:ss')}</td>
                     <td className="query-cell">
-                      <div className="query-text">{JSON.stringify(log.command)}</div>
+                      <div className="query-text-full">{JSON.stringify(log.command)}</div>
                     </td>
                     <td>
                       <span className={log.millis > 100 ? 'duration-high' : log.millis > 50 ? 'duration-mid' : ''}>
@@ -280,4 +272,5 @@ function App() {
 }
 
 export default App;
+
 
