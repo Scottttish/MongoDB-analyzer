@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import './index.css';
 import { 
   Database, RefreshCw, Zap, Activity, Clock, 
-  Monitor, Cpu, HardDrive
+  HardDrive, Layout, Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { 
@@ -22,6 +22,7 @@ function App() {
     logs: [],
     colStats: {},
     loadData: [],
+    realLoad: 0,
     crud: { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 }
   });
 
@@ -39,19 +40,17 @@ function App() {
       const idxData = await idxRes.json();
 
       if (data.success) {
-        // Calculate CRUD counts from logs
-        const crud = data.logs.reduce((acc, log) => {
-          acc[log.op] = (acc[log.op] || 0) + 1;
-          return acc;
-        }, { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 });
-
         setStats({
           logs: data.logs,
           colStats: data.colStats,
           loadData: data.loadData,
+          realLoad: data.realLoad,
           collections: statsData.collections || [],
           indexes: idxData.indexes || [],
-          crud
+          crud: data.logs.reduce((acc, log) => {
+            acc[log.op] = (acc[log.op] || 0) + 1;
+            return acc;
+          }, { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 })
         });
         
         setShowUpdated(true);
@@ -69,13 +68,15 @@ function App() {
 
   const storageItems = storageView === 'collections' ? stats.collections : stats.indexes;
   const maxVal = Math.max(...storageItems.map(i => i.size), 1);
+  const avgLoad = stats.loadData.length > 0 
+    ? Math.round(stats.loadData.reduce((a, b) => a + b.value, 0) / stats.loadData.length)
+    : 0;
 
   return (
     <div className="dashboard">
-      {/* Header Config */}
       <header className="header-config">
         <div className="config-input-group">
-          <Database size={20} color="#3b82f6" />
+          <Database size={16} color="#24a1de" />
           <input 
             type="text" 
             className="config-input" 
@@ -84,23 +85,19 @@ function App() {
             onChange={(e) => setDbUri(e.target.value)}
           />
           <button className="btn btn-primary" onClick={handleConnect} disabled={loading}>
-            {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Обновить данные'}
+            {loading ? <RefreshCw className="animate-spin" size={14} /> : 'Обновить данные'}
           </button>
         </div>
         <div className="header-actions">
           <div className={`last-updated ${showUpdated ? 'visible' : ''}`}>
             Последнее обновление сейчас
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div className="btn btn-secondary" style={{ padding: '8px' }}><Monitor size={18} /></div>
-            <div className="btn btn-secondary" style={{ padding: '8px' }}><Cpu size={18} /></div>
-          </div>
+          <button className="btn btn-secondary btn-icon" title="Layout"><Layout size={14} /></button>
+          <button className="btn btn-secondary btn-icon" title="Settings"><Settings size={14} /></button>
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="main-content">
-        {/* CRUD Widgets */}
         <div className="crud-grid">
           {Object.entries(stats.crud).map(([op, val]) => (
             <div key={op} className="panel crud-card">
@@ -110,21 +107,19 @@ function App() {
           ))}
         </div>
 
-        {/* CRUD Chart */}
-        <div className="panel" style={{ height: '400px' }}>
-          <h3><Activity size={18} color="#3b82f6" /> Нагрузка операций</h3>
+        <div className="panel" style={{ height: '340px' }}>
+          <h3><Activity size={14} color="#24a1de" /> Нагрузка операций</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.logs.slice(0, 10).reverse()}>
-                <XAxis dataKey="ts" tickFormatter={(t) => format(new Date(t), 'HH:mm')} stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
+                <XAxis dataKey="ts" tickFormatter={(t) => format(new Date(t), 'HH:mm')} stroke="#95a5a6" fontSize={11} />
+                <YAxis stroke="#95a5a6" fontSize={11} />
                 <RechartsTooltip 
-                  contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                  itemStyle={{ color: '#f8fafc' }}
+                  contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '8px', fontSize: '12px' }}
                 />
-                <Bar dataKey="millis" radius={[4, 4, 0, 0]} name="Latency (ms)">
+                <Bar dataKey="millis" radius={[2, 2, 0, 0]} name="Задержка (ms)">
                   {stats.logs.slice(0, 10).reverse().map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.op === 'READ' ? '#10b981' : entry.op === 'UPDATE' ? '#f59e0b' : entry.op === 'CREATE' ? '#3b82f6' : '#ef4444'} />
+                    <Cell key={`cell-${index}`} fill={entry.op === 'READ' ? '#27ae60' : entry.op === 'UPDATE' ? '#f1c40f' : entry.op === 'CREATE' ? '#24a1de' : '#e74c3c'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -132,9 +127,8 @@ function App() {
           </div>
         </div>
 
-        {/* Operation Log */}
         <div className="panel log-panel">
-          <h3><Clock size={18} color="#3b82f6" /> Журнал операций</h3>
+          <h3><Clock size={14} color="#24a1de" /> Журнал операций</h3>
           <div className="log-table-wrapper">
             <table className="log-table">
               <thead>
@@ -148,12 +142,12 @@ function App() {
               <tbody>
                 {stats.logs.map((log, i) => (
                   <tr key={i}>
-                    <td><span className={`badge badge-${log.op?.toLowerCase() || 'read'}`} style={{background: 'rgba(255,255,255,0.05)'}}>{log.op}</span></td>
+                    <td><span className={`badge badge-${log.op?.toLowerCase() || 'read'}`}>{log.op}</span></td>
                     <td className="query-cell">
                       <div className="query-text">{JSON.stringify(log.command)}</div>
                     </td>
                     <td>
-                      <span className={log.millis > 300 ? 'duration-high' : log.millis > 100 ? 'duration-mid' : ''}>
+                      <span className={log.millis > 100 ? 'duration-high' : log.millis > 50 ? 'duration-mid' : ''}>
                         {(log.millis / 1000).toFixed(3)}s
                       </span>
                     </td>
@@ -170,11 +164,9 @@ function App() {
         </div>
       </main>
 
-      {/* Sidebar Right */}
       <aside className="sidebar-right">
-        {/* Storage Widget */}
         <div className="panel storage-widget">
-          <h3><HardDrive size={18} color="#3b82f6" /> Использование хранилища</h3>
+          <h3><HardDrive size={14} color="#24a1de" /> Использование хранилища</h3>
           <div className="storage-content">
             {storageItems.map((item, i) => (
               <div key={i} className="storage-item">
@@ -192,39 +184,28 @@ function App() {
             ))}
           </div>
           <div className="storage-buttons">
-            <button 
-              className={`btn btn-secondary ${storageView === 'collections' ? 'active' : ''}`}
-              onClick={() => setStorageView('collections')}
-            >
-              Коллекции
-            </button>
-            <button 
-              className={`btn btn-secondary ${storageView === 'indexes' ? 'active' : ''}`}
-              onClick={() => setStorageView('indexes')}
-            >
-              Индексы
-            </button>
+            <button className={`btn btn-secondary ${storageView === 'collections' ? 'active' : ''}`} onClick={() => setStorageView('collections')}>Коллекции</button>
+            <button className={`btn btn-secondary ${storageView === 'indexes' ? 'active' : ''}`} onClick={() => setStorageView('indexes')}>Индексы</button>
           </div>
         </div>
 
-        {/* Database Load Widget */}
         <div className="panel">
-          <h3><Zap size={18} color="#3b82f6" /> Нагрузка базы данных</h3>
-          <div style={{ height: '160px' }}>
+          <h3><Zap size={14} color="#24a1de" /> Нагрузка базы данных</h3>
+          <div style={{ height: '140px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.loadData}>
-                <Bar dataKey="value" fill="#3b82f6" radius={[2, 2, 0, 0]}>
+                <Bar dataKey="value" fill="#24a1de" radius={[1, 1, 0, 0]}>
                    {stats.loadData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fillOpacity={entry.value / 100} fill="#3b82f6" />
+                    <Cell key={`cell-${index}`} fillOpacity={(entry.value / 100) * 0.8 + 0.2} fill="#24a1de" />
                   ))}
                 </Bar>
                 <XAxis dataKey="hour" hide />
-                <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} content={() => null} />
+                <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.02)'}} content={() => null} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="text-muted" style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px' }}>
-            Средняя загрузка: 84%
+          <div className="text-muted" style={{ textAlign: 'center', marginTop: '10px', fontSize: '11px' }}>
+            Средняя загрузка: {avgLoad}%
           </div>
         </div>
       </aside>
@@ -233,4 +214,5 @@ function App() {
 }
 
 export default App;
+
 
