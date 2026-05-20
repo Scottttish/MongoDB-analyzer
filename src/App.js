@@ -1,19 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import './index.css';
 import { 
-  Database, RefreshCw, Layers, Zap, Activity, Clock, 
-  ChevronUp, ChevronDown, Monitor, Cpu, Server, HardDrive
+  Database, RefreshCw, Zap, Activity, Clock, 
+  Monitor, Cpu, HardDrive
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, Cell, AreaChart, Area
+  ResponsiveContainer, Cell
 } from 'recharts';
 
 function App() {
   const [dbUri, setDbUri] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showUpdated, setShowUpdated] = useState(false);
   const [storageView, setStorageView] = useState('collections'); // 'collections' | 'indexes'
