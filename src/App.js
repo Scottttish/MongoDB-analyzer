@@ -27,7 +27,6 @@ const OP_ICONS = {
 function App() {
   const [dbUri, setDbUri] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showUpdated, setShowUpdated] = useState(false);
   const [storageView, setStorageView] = useState('collections');
   
   const [stats, setStats] = useState({
@@ -70,9 +69,6 @@ function App() {
           return acc;
         }, { READ: 0, UPDATE: 0, CREATE: 0, DELETE: 0 })
       });
-      
-      setShowUpdated(true);
-      setTimeout(() => setShowUpdated(false), 3000);
     } catch (e) {
       setError(e.message);
     }
