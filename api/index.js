@@ -91,9 +91,10 @@ app.get('/api/activity', async (req, res) => {
     const activeConns = serverStatus.connections?.active || 0;
     const realLoad = Math.min(((activeConns + 1) / (currentConns + 1)) * 100 + 5, 100);
 
-    // Load Data - strictly based on serverStatus at this point
-    // Since we don't have historical persistency, we use the current counters
-    const loadData = [{ hour: format(new Date(), 'HH:mm'), value: realLoad }];
+    // Load Data - native JS timestamp
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const loadData = [{ hour: timeStr, value: realLoad }];
 
     // Activity Logs - ONLY REAL DATA
     let logs = [];

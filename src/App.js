@@ -172,112 +172,116 @@ function App() {
         </div>
       )}
 
-      <main className="main-content" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div className="crud-grid">
-          {Object.entries(stats.crud).map(([op, val]) => {
-            const pct = Math.round((val / totalOps) * 100);
-            return (
-              <div key={op} className="panel crud-card">
-                <div className="crud-header">
-                  <span className="crud-label">{op}</span>
-                  <div className="crud-icon-box" style={{ background: OP_COLORS[op] + '15' }}>
-                    {OP_ICONS[op]}
+      <main className="main-content">
+        <div className="dashboard-grid">
+          <div className="main-col" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="panel" style={{ minHeight: '450px' }}>
+              <h3><Activity size={16} color="#24a1de" /> Нагрузка операций</h3>
+              <div className="chart-container" style={{ height: '360px', marginTop: '20px' }}>
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
+                      <YAxis stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
+                      <RechartsTooltip 
+                        cursor={{fill: 'rgba(0,0,0,0.02)'}}
+                        contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
+                      />
+                      <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} barSize={32} />
+                      <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} barSize={32} />
+                      <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} barSize={32} />
+                      <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[8, 8, 0, 0]} barSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#95a5a6', flexDirection: 'column', gap: '15px' }}>
+                    <Activity size={40} opacity={0.2} />
+                    <span>Нет данных. Включение Profiling Level 2...</span>
                   </div>
-                </div>
-                <div className="crud-value">{val}</div>
-                <div className="crud-footer">
-                   <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
-                    {pct}% от трафика
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="panel" style={{ minHeight: '420px' }}>
-          <h3><Activity size={16} color="#24a1de" /> Нагрузка операций (ms)</h3>
-          <div className="chart-container" style={{ height: '320px', marginTop: '20px' }}>
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
-                  <YAxis stroke="#95a5a6" fontSize={11} axisLine={false} tickLine={false} />
-                  <RechartsTooltip 
-                    cursor={{fill: 'rgba(0,0,0,0.02)'}}
-                    contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
-                  />
-                  <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} barSize={32} />
-                  <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} barSize={32} />
-                  <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} barSize={32} />
-                  <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[8, 8, 0, 0]} barSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#95a5a6', flexDirection: 'column', gap: '15px' }}>
-                <Activity size={40} opacity={0.2} />
-                <span>Нет данных. Включение Profiling Level 2 в MongoDB...</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="panel storage-widget">
-          <h3><HardDrive size={16} color="#24a1de" /> Использование хранилища</h3>
-          <div className="storage-tabs" style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-             <button className={`btn ${storageView === 'collections' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('collections')}>Коллекции</button>
-             <button className={`btn ${storageView === 'indexes' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('indexes')}>Индексы</button>
-          </div>
-          <div className="storage-content">
-            <SegmentedProgress items={storageItems} />
-          </div>
-        </div>
-
-        <div className="panel log-panel">
-          <h3><Clock size={16} color="#24a1de" /> Журнал операций (Real-time)</h3>
-          <div className="log-table-wrapper" style={{ marginTop: '16px' }}>
-            <table className="log-table">
-              <thead>
-                <tr>
-                  <th>Тип</th>
-                  <th>Время</th>
-                  <th>Запрос</th>
-                  <th>Длительность</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.logs.length > 0 ? stats.logs.map((log, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span className="badge-solid" style={{ background: OP_COLORS[log.op] }}>
-                        {log.op}
-                      </span>
-                    </td>
-                    <td className="time-cell">{format(new Date(log.ts), 'HH:mm:ss')}</td>
-                    <td className="query-cell">
-                      <div className="query-text">{JSON.stringify(log.command)}</div>
-                    </td>
-                    <td>
-                      <span className={log.millis > 100 ? 'duration-high' : log.millis > 50 ? 'duration-mid' : ''}>
-                        {(log.millis / 1000).toFixed(3)}s
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`pct-box ${log.category === 'Нормальный' ? 'badge-normal' : log.category === 'Средний' ? 'badge-medium' : 'badge-critical'}`} style={{background: 'transparent', padding: 0}}>
-                        {log.category}
-                      </span>
-                    </td>
-                  </tr>
-                )) : (
-                   <tr>
-                     <td colSpan="5" style={{textAlign: 'center', padding: '60px', color: '#95a5a6'}}>
-                        Ожидание данных...
-                     </td>
-                   </tr>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          </div>
+
+          <aside className="crud-sidebar">
+            {Object.entries(stats.crud).map(([op, val]) => {
+              const pct = Math.round((val / totalOps) * 100);
+              return (
+                <div key={op} className="panel crud-card">
+                  <div className="crud-header">
+                    <span className="crud-label">{op}</span>
+                    <div className="crud-icon-box" style={{ background: OP_COLORS[op] + '15' }}>
+                      {OP_ICONS[op]}
+                    </div>
+                  </div>
+                  <div className="crud-value">{val}</div>
+                  <div className="crud-footer">
+                    <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '15', color: OP_COLORS[op] }}>
+                      {pct}% от трафика
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </aside>
+
+          <div className="full-width panel storage-widget">
+            <h3><HardDrive size={16} color="#24a1de" /> Использование хранилища</h3>
+            <div className="storage-tabs" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <button className={`btn ${storageView === 'collections' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('collections')}>Коллекции</button>
+              <button className={`btn ${storageView === 'indexes' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('indexes')}>Индексы</button>
+            </div>
+            <div className="storage-content">
+              <SegmentedProgress items={storageItems} />
+            </div>
+          </div>
+
+          <div className="full-width panel log-panel">
+            <h3><Clock size={16} color="#24a1de" /> Журнал операций</h3>
+            <div className="log-table-wrapper" style={{ marginTop: '20px' }}>
+              <table className="log-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Тип</th>
+                    <th style={{ textAlign: 'left' }}>Время</th>
+                    <th style={{ textAlign: 'left' }}>Запрос</th>
+                    <th style={{ textAlign: 'left' }}>Длительность</th>
+                    <th style={{ textAlign: 'left' }}>Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.logs.length > 0 ? stats.logs.map((log, i) => (
+                    <tr key={i}>
+                      <td>
+                        <span className="badge-solid" style={{ background: OP_COLORS[log.op] }}>
+                          {log.op}
+                        </span>
+                      </td>
+                      <td className="time-cell">{format(new Date(log.ts), 'HH:mm:ss')}</td>
+                      <td className="query-cell">
+                        <div className="query-text">{JSON.stringify(log.command)}</div>
+                      </td>
+                      <td>
+                        <span className={log.millis > 100 ? 'duration-high' : log.millis > 50 ? 'duration-mid' : ''}>
+                          {(log.millis / 1000).toFixed(3)}s
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`pct-box ${log.category === 'Нормальный' ? 'badge-normal' : log.category === 'Средний' ? 'badge-medium' : 'badge-critical'}`} style={{background: 'transparent', padding: 0}}>
+                          {log.category}
+                        </span>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '80px', color: '#95a5a6' }}>
+                        Ожидание данных...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </main>

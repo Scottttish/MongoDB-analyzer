@@ -33,12 +33,23 @@ body {
 }
 
 .dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  max-width: 1200px;
-  margin: 0 auto;
   gap: 24px;
-  padding: 24px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.full-width {
+  grid-column: 1 / -1;
 }
 
 /* Header Config Bar */
@@ -70,6 +81,13 @@ body {
   background: #f8f9fa;
 }
 
+/* Sidebar Vertical CRUD */
+.crud-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 /* Panels */
 .panel {
   background: var(--bg-panel);
@@ -89,16 +107,9 @@ body {
   gap: 8px;
 }
 
-/* CRUD Counter Cards */
-.crud-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-}
-
 .crud-card {
   padding: 20px;
-  min-height: 140px;
+  min-height: 120px;
 }
 
 .crud-icon-box {
