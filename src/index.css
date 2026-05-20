@@ -82,10 +82,23 @@ body {
 }
 
 /* Sidebar Vertical CRUD */
-.crud-sidebar {
-  display: flex;
-  flex-direction: column;
+/* CRUD Counter Cards - Horizontal on TOP */
+.crud-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
+}
+
+.crud-card {
+  padding: 20px;
+  min-height: 140px;
+}
+
+.middle-row {
+  display: grid;
+  grid-template-columns: 1fr 450px;
+  gap: 24px;
+  align-items: start;
 }
 
 /* Panels */
