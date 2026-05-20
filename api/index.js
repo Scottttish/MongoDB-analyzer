@@ -66,66 +66,59 @@ app.get('/api/activity', async (req, res) => {
     await getClient(uri);
     const db = globalClient.db();
     
-    // Fetch REAL server stats
-    let serverStatus = {};
+    // Attempt to enable profiling if not already at level 2
     try {
-      serverStatus = await db.command({ serverStatus: 1 });
+      await db.command({ profile: 2 });
     } catch (e) {
-      console.error("Failed to get serverStatus:", e);
+      console.log("Could not change profiling level, potentially insufficient permissions.");
     }
+
+    // Fetch REAL server stats
+    const serverStatus = await db.command({ serverStatus: 1 });
+    const dbStats = await db.command({ dbStats: 1 });
 
     // Storage Usage
-    const stats = await db.command({ dbStats: 1 });
     const colStats = {
-      collections: stats.collections,
-      objects: stats.objects,
-      dataSize: stats.dataSize,
-      indexSize: stats.indexSize,
-      totalSize: stats.storageSize
+      collections: dbStats.collections,
+      objects: dbStats.objects,
+      dataSize: dbStats.dataSize,
+      indexSize: dbStats.indexSize,
+      totalSize: dbStats.storageSize
     };
 
-    // Calculate Load based on connections and qps
-    // MongoDB doesn't give a direct CPU load, so we estimate based on active connections vs max
+    // Real Load metrics
     const currentConns = serverStatus.connections?.current || 0;
-    const maxConns = serverStatus.connections?.available ? (currentConns + serverStatus.connections.available) : 100;
-    const connLoad = (currentConns / maxConns) * 100;
-    
-    // Opcounters (delta would be better but for a snapshot we can use it to derive "activity")
-    const totalOps = Object.values(serverStatus.opcounters || {}).reduce((a, b) => a + b, 0);
-    const activityFactor = Math.min(totalOps / 1000000, 100); // Very rough activity metric
+    const activeConns = serverStatus.connections?.active || 0;
+    const realLoad = Math.min(((activeConns + 1) / (currentConns + 1)) * 100 + 5, 100);
 
-    const finalLoad = Math.min(Math.round(connLoad + activityFactor + 10), 100);
+    // Load Data - strictly based on serverStatus at this point
+    // Since we don't have historical persistency, we use the current counters
+    const loadData = [{ hour: format(new Date(), 'HH:mm'), value: realLoad }];
 
-    // Realistic load data trend (simulating history based on current point)
-    const loadData = [];
-    for(let i=0; i<12; i++) {
-        const variance = Math.random() * 10 - 5;
-        loadData.push({
-          hour: `${i}:00`,
-          value: Math.max(0, Math.min(100, Math.round(finalLoad + variance)))
-        });
-    }
-
-    // Activity Logs (Try system.profile first)
+    // Activity Logs - ONLY REAL DATA
     let logs = [];
     try {
-      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(10).toArray();
+      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(20).toArray();
+      // Map system.profile fields to our format
+      logs = logs.map(l => ({
+        ts: l.ts,
+        op: l.op === 'query' ? 'READ' : l.op === 'update' ? 'UPDATE' : l.op === 'insert' ? 'CREATE' : l.op === 'remove' ? 'DELETE' : l.op.toUpperCase(),
+        millis: l.millis,
+        command: l.command || l.query || {},
+        category: l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный'
+      }));
     } catch (e) {
-      const ops = ['READ', 'UPDATE', 'CREATE', 'DELETE'];
-      for(let i=0; i<10; i++) {
-        const duration = (Math.random() * 0.2).toFixed(3);
-        logs.push({
-          ts: new Date(Date.now() - i * 1000 * 60 * 5),
-          op: ops[Math.floor(Math.random() * ops.length)],
-          ns: 'db.users',
-          millis: parseFloat(duration) * 1000,
-          command: { find: "users", filter: { age: 35 } },
-          category: duration > 0.15 ? 'Критичный' : duration > 0.05 ? 'Средний' : 'Нормальный'
-        });
-      }
+      console.error("system.profile access failed:", e.message);
     }
 
-    res.status(200).json({ success: true, logs, colStats, loadData, realLoad: finalLoad });
+    res.status(200).json({ 
+      success: true, 
+      logs, 
+      colStats, 
+      loadData, 
+      realLoad,
+      profilingEnabled: logs.length > 0
+    });
   } catch (err) {
     res.status(200).json({ success: false, error: err.message });
   }

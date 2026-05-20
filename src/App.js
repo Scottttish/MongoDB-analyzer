@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import './index.css';
 import { 
-  Database, RefreshCw, Zap, Activity, Clock, 
+  Database, RefreshCw, Activity, Clock, 
   HardDrive, Layout, Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -154,10 +154,10 @@ function App() {
         </div>
         <div className="header-actions">
           <div className={`last-updated ${showUpdated ? 'visible' : ''}`}>
-            Последнее обновление сейчас
+            Обновлено успешно
           </div>
-          <button className="btn btn-secondary btn-icon"><Layout size={14} /></button>
-          <button className="btn btn-secondary btn-icon"><Settings size={14} /></button>
+          <button className="btn btn-secondary btn-icon" title="Layout"><Layout size={14} /></button>
+          <button className="btn btn-secondary btn-icon" title="Settings"><Settings size={14} /></button>
         </div>
       </header>
 
@@ -175,7 +175,7 @@ function App() {
                 </div>
                 <div className="crud-value">{val}</div>
                 <div className="crud-footer">
-                  <span>+{Math.floor(val/4)} vs last week</span>
+                  <span>Реальный трафик (ops)</span>
                   <div className="crud-pct-badge" style={{ background: OP_COLORS[op] + '20', color: OP_COLORS[op] }}>
                     {pct}%
                   </div>
@@ -186,27 +186,34 @@ function App() {
         </div>
 
         <div className="panel" style={{ height: '340px' }}>
-          <h3><Activity size={14} color="#24a1de" /> Нагрузка операций</h3>
+          <h3><Activity size={14} color="#24a1de" /> Нагрузка операций (ms)</h3>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} />
-                <YAxis stroke="#95a5a6" fontSize={11} />
-                <RechartsTooltip 
-                  cursor={{fill: 'rgba(0,0,0,0.02)'}}
-                  contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '8px', fontSize: '12px' }}
-                />
-                <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <XAxis dataKey="time" stroke="#95a5a6" fontSize={11} />
+                  <YAxis stroke="#95a5a6" fontSize={11} />
+                  <RechartsTooltip 
+                    cursor={{fill: 'rgba(0,0,0,0.02)'}}
+                    contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#95a5a6', flexDirection: 'column', gap: '10px' }}>
+                <span>Нет данных профилирования</span>
+                <span style={{fontSize: '11px'}}>Включите профилирование в MongoDB или совершите действия</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="panel log-panel">
-          <h3><Clock size={14} color="#24a1de" /> Журнал операций</h3>
+          <h3><Clock size={14} color="#24a1de" /> Журнал операций (Real-time system.profile)</h3>
           <div className="log-table-wrapper">
             <table className="log-table">
               <thead>
@@ -219,7 +226,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {stats.logs.map((log, i) => (
+                {stats.logs.length > 0 ? stats.logs.map((log, i) => (
                   <tr key={i}>
                     <td>
                       <span className="badge-solid" style={{ background: OP_COLORS[log.op] }}>
@@ -241,7 +248,13 @@ function App() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                   <tr>
+                     <td colSpan="5" style={{textAlign: 'center', padding: '40px', color: '#95a5a6'}}>
+                        Пусто. Ожидание данных из Базы Данных...
+                     </td>
+                   </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -250,7 +263,7 @@ function App() {
 
       <aside className="sidebar-right">
         <div className="panel storage-widget">
-          <h3><HardDrive size={14} color="#24a1de" /> Использование хранилища</h3>
+          <h3><HardDrive size={14} color="#24a1de" /> Хранилище (dbStats)</h3>
           <div className="storage-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
              <button className={`btn ${storageView === 'collections' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('collections')} style={{fontSize: '11px', padding: '4px 10px'}}>Коллекции</button>
              <button className={`btn ${storageView === 'indexes' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStorageView('indexes')} style={{fontSize: '11px', padding: '4px 10px'}}>Индексы</button>
@@ -265,3 +278,4 @@ function App() {
 }
 
 export default App;
+
