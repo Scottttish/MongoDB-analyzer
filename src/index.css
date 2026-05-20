@@ -290,7 +290,22 @@ body {
 }
 
 .btn-primary { background: var(--primary); color: white; }
-.btn-secondary { background: white; border-color: var(--border); color: var(--text-main); }
+.btn-icon {
+  padding: 8px;
+  min-width: 36px;
+  height: 36px;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.log-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+}
 
 .animate-spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

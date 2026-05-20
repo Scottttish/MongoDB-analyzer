@@ -68,8 +68,22 @@ function App() {
     setLoading(false);
   }, [dbUri]);
 
+  // Auto-refresh every 5 seconds
+  React.useEffect(() => {
+    if (!dbUri) return;
+    const interval = setInterval(() => {
+      fetchData();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchData, dbUri]);
+
   const handleConnect = () => {
     fetchData();
+  };
+
+  const handleExport = () => {
+    if (!dbUri) return;
+    window.open(`/api/export?format=excel&uri=${encodeURIComponent(dbUri.trim())}`, '_blank');
   };
 
   const totalOps = Object.values(stats.crud).reduce((a, b) => a + b, 0) || 1;
@@ -124,7 +138,7 @@ function App() {
       bucket = { time, READ: 0, CREATE: 0, UPDATE: 0, DELETE: 0 };
       acc.push(bucket);
     }
-    bucket[log.op] = (bucket[log.op] || 0) + log.millis;
+    bucket[log.op] = (bucket[log.op] || 0) + (log.millis / 1000);
     return acc;
   }, []).slice(-15);
 
@@ -140,6 +154,9 @@ function App() {
             value={dbUri}
             onChange={(e) => setDbUri(e.target.value)}
           />
+          <button className="btn btn-icon btn-secondary" onClick={fetchData} title="Обновить" disabled={loading}>
+            <RefreshCw className={loading ? 'animate-spin' : ''} size={14} />
+          </button>
           <button className="btn btn-primary" onClick={handleConnect} disabled={loading}>
             {loading ? <RefreshCw className="animate-spin" size={14} /> : 'Соединить'}
           </button>
@@ -181,7 +198,7 @@ function App() {
 
         <div className="middle-row">
           <div className="panel" style={{ minHeight: '420px' }}>
-            <h3><Activity size={16} color="#24a1de" /> Нагрузка операций</h3>
+            <h3><Activity size={16} color="#24a1de" /> Нагрузка операций (sec)</h3>
             <div className="chart-container" style={{ height: '320px', marginTop: '20px' }}>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -192,10 +209,10 @@ function App() {
                       cursor={{fill: 'rgba(0,0,0,0.02)'}}
                       contentStyle={{ background: '#fff', border: '1px solid #e6ebf0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
                     />
-                    <Bar dataKey="READ" stackId="a" fill={OP_COLORS.READ} barSize={32} />
-                    <Bar dataKey="CREATE" stackId="a" fill={OP_COLORS.CREATE} barSize={32} />
-                    <Bar dataKey="UPDATE" stackId="a" fill={OP_COLORS.UPDATE} barSize={32} />
-                    <Bar dataKey="DELETE" stackId="a" fill={OP_COLORS.DELETE} radius={[8, 8, 0, 0]} barSize={32} />
+                    <Bar dataKey="READ" fill={OP_COLORS.READ} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="CREATE" fill={OP_COLORS.CREATE} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="UPDATE" fill={OP_COLORS.UPDATE} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="DELETE" fill={OP_COLORS.DELETE} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -220,13 +237,18 @@ function App() {
         </div>
 
         <div className="panel log-panel">
-          <h3><Clock size={16} color="#24a1de" /> Журнал операций</h3>
-          <div className="log-table-wrapper" style={{ marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3><Clock size={16} color="#24a1de" /> Журнал операций</h3>
+            <button className="btn btn-secondary" onClick={handleExport}>
+               📥 Сохранить как Excel
+            </button>
+          </div>
+          <div className="log-table-wrapper">
             <table className="log-table" style={{ width: '100%' }}>
               <thead>
                 <tr>
                   <th>Тип</th>
-                  <th>Время</th>
+                  <th>Дата и Время</th>
                   <th>Запрос</th>
                   <th>Длительность</th>
                   <th>Статус</th>
@@ -240,7 +262,11 @@ function App() {
                         {log.op}
                       </span>
                     </td>
-                    <td className="time-cell">{format(new Date(log.ts), 'HH:mm:ss')}</td>
+                    <td className="time-cell">
+                      {format(new Date(log.ts), 'dd.MM.yyyy')}
+                      <br/>
+                      <span style={{fontSize: '13px', color: '#000'}}>{format(new Date(log.ts), 'HH:mm:ss')}</span>
+                    </td>
                     <td className="query-cell">
                       <div className="query-text-full">{JSON.stringify(log.command)}</div>
                     </td>

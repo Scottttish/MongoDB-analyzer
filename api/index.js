@@ -100,15 +100,51 @@ app.get('/api/activity', async (req, res) => {
     let logs = [];
     let profilingError = null;
     try {
-      logs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(20).toArray();
-      // Map system.profile fields to our format
-      logs = logs.map(l => ({
-        ts: l.ts,
-        op: l.op === 'query' ? 'READ' : l.op === 'update' ? 'UPDATE' : l.op === 'insert' ? 'CREATE' : l.op === 'remove' ? 'DELETE' : l.op.toUpperCase(),
-        millis: l.millis,
-        command: l.command || l.query || {},
-        category: l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный'
-      }));
+      let rawLogs = await db.collection('system.profile').find({}).sort({ ts: -1 }).limit(100).toArray();
+      
+      // Filter out analyzer's own queries to avoid noise
+      rawLogs = rawLogs.filter(l => {
+        const cmd = l.command || l.query || {};
+        // Ignore diagnostic commands run by the analyzer
+        if (cmd.dbStats || cmd.collStats || cmd.listCollections || cmd.listIndexes) return false;
+        if (cmd.aggregate && JSON.stringify(cmd.pipeline).includes('$indexStats')) return false;
+        // Ignore the analyzer's own profile queries
+        if (cmd.find === 'system.profile') return false;
+        return true;
+      });
+
+      logs = rawLogs.slice(0, 20).map(l => {
+        let opType = l.op.toUpperCase();
+        const cmd = l.command || l.query || {};
+
+        if (opType === 'COMMAND') {
+          if (cmd.find || cmd.aggregate || cmd.count || cmd.distinct) opType = 'READ';
+          else if (cmd.insert) opType = 'CREATE';
+          else if (cmd.update) opType = 'UPDATE';
+          else if (cmd.delete || cmd.findAndModify) opType = 'DELETE';
+        } else if (opType === 'QUERY') {
+          opType = 'READ';
+        } else if (opType === 'INSERT') {
+          opType = 'CREATE';
+        } else if (opType === 'REMOVE') {
+          opType = 'DELETE';
+        }
+
+        // Final fallback for labels
+        const finalOp = opType === 'QUERY' ? 'READ' : opType === 'INSERT' ? 'CREATE' : opType === 'REMOVE' ? 'DELETE' : opType;
+
+        return {
+          ts: l.ts,
+          op: ['READ', 'CREATE', 'UPDATE', 'DELETE'].includes(finalOp) ? finalOp : 'OTHER',
+          millis: l.millis,
+          command: cmd,
+          category: l.millis > 100 ? 'Критичный' : l.millis > 50 ? 'Средний' : 'Нормальный'
+        };
+      });
+
+      // Further filter: only keep standard CRUD for the main logs/stats
+      logs = logs.filter(l => l.op !== 'OTHER');
+
     } catch (e) {
       profilingError = e.message;
       console.error("system.profile access failed:", e.message);
